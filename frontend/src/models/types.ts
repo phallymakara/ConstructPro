@@ -1,0 +1,298 @@
+export interface Customer {
+  id: number;
+  name: string;
+  phone?: string;
+  email?: string;
+  company?: string;
+  address?: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface CustomerFormData {
+  name: string;
+  phone: string;
+  email: string;
+  company: string;
+  address: string;
+  notes: string;
+}
+
+export type MaterialCategory = 'Profile' | 'Glass' | 'Seal' | 'Hardware' | 'Accessory' | 'Panel';
+
+export interface Material {
+  id: number;
+  code: string;
+  name: string;
+  category: MaterialCategory;
+  unit: string;
+  unit_cost: number;
+  current_stock: number;
+  reserved_stock: number;
+  available_stock: number;
+  minimum_stock: number;
+  storage_location?: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface MaterialFormData {
+  code: string;
+  name: string;
+  category: MaterialCategory;
+  unit: string;
+  unit_cost: number;
+  current_stock: number;
+  minimum_stock: number;
+  storage_location: string;
+  notes: string;
+}
+
+export interface StockMovement {
+  id: number;
+  material_id: number;
+  project_id?: number;
+  movement_type: string;
+  quantity: number;
+  unit_cost: number;
+  reference_note?: string;
+  created_at: string;
+}
+
+export interface ProjectItem {
+  id: number;
+  project_id: number;
+  product_type: string;
+  description?: string;
+  width_mm: number;
+  height_mm: number;
+  quantity: number;
+  glass_specification?: string;
+  frame_color?: string;
+  unit_estimated_cost: number;
+  unit_selling_price: number;
+  created_at: string;
+}
+
+export interface ProjectItemFormData {
+  product_type: string;
+  description: string;
+  width_mm: number;
+  height_mm: number;
+  quantity: number;
+  glass_specification: string;
+  frame_color: string;
+  unit_estimated_cost: number;
+  unit_selling_price: number;
+}
+
+export interface MaterialRequirement {
+  id: number;
+  project_id: number;
+  material_id: number;
+  material_name: string;
+  material_code: string;
+  material_unit: string;
+  required_qty: number;
+  allocated_qty: number;
+  wastage_percent: number;
+  status: 'Pending' | 'Reserved' | 'Shortage' | 'Issued';
+  available_stock: number;
+}
+
+export type ProjectStatus =
+  | 'Draft'
+  | 'Quotation'
+  | 'Approved'
+  | 'Material Preparation'
+  | 'Production'
+  | 'Ready for Delivery'
+  | 'Installation'
+  | 'Completed'
+  | 'Cancelled';
+
+export interface Project {
+  id: number;
+  project_number: string;
+  project_name: string;
+  customer_id?: number;
+  location?: string;
+  status: ProjectStatus;
+  assigned_manager?: string;
+  start_date?: string;
+  deadline_date?: string;
+  estimated_cost: number;
+  actual_cost: number;
+  contract_amount: number;
+  notes?: string;
+  created_at: string;
+  customer?: Customer;
+  items: ProjectItem[];
+  material_requirements: MaterialRequirement[];
+}
+
+export interface ProjectFormData {
+  project_number?: string;
+  project_name: string;
+  customer_id?: number;
+  location?: string;
+  status?: ProjectStatus;
+  assigned_manager?: string;
+  start_date?: string;
+  deadline_date?: string;
+  contract_amount?: number;
+  notes?: string;
+  items?: ProjectItemFormData[];
+}
+
+export type QuotationStatus = 'Draft' | 'Sent' | 'Approved' | 'Rejected';
+
+export interface Quotation {
+  id: number;
+  quotation_number: string;
+  project_id?: number;
+  customer_id: number;
+  status: QuotationStatus;
+  material_cost: number;
+  labor_cost: number;
+  transport_cost: number;
+  installation_cost: number;
+  subtotal: number;
+  discount_amount: number;
+  tax_percent: number;
+  total_amount: number;
+  expected_profit: number;
+  valid_until?: string;
+  notes?: string;
+  created_at: string;
+  customer?: Customer;
+}
+
+export interface QuotationFormData {
+  quotation_number: string;
+  project_id?: number;
+  customer_id: number;
+  status: QuotationStatus;
+  material_cost: number;
+  labor_cost: number;
+  transport_cost: number;
+  installation_cost: number;
+  discount_amount: number;
+  tax_percent: number;
+  valid_until: string;
+  notes: string;
+}
+
+export interface DashboardSummary {
+  total_projects: number;
+  active_projects: number;
+  completed_projects: number;
+  delayed_projects: number;
+  pending_quotations: number;
+  total_contract_value: number;
+  total_estimated_costs: number;
+  projected_profit: number;
+  low_stock_count: number;
+  shortage_count: number;
+}
+
+export interface Supplier {
+  id: number;
+  name: string;
+  contact_person?: string;
+  phone?: string;
+  email?: string;
+  supplier_type: 'Local' | 'Overseas';
+  materials_supplied?: string;
+  lead_time_days: number;
+  rating: number;
+  notes?: string;
+  created_at: string;
+}
+
+export interface SupplierFormData {
+  name: string;
+  contact_person: string;
+  phone: string;
+  email: string;
+  supplier_type: 'Local' | 'Overseas';
+  materials_supplied: string;
+  lead_time_days: number;
+  rating: number;
+  notes: string;
+}
+
+export interface PurchaseOrderItem {
+  id: number;
+  purchase_order_id: number;
+  material_id: number;
+  material_name?: string;
+  material_code?: string;
+  material_unit?: string;
+  quantity: number;
+  unit_cost: number;
+  received_qty: number;
+}
+
+export interface PurchaseOrder {
+  id: number;
+  po_number: string;
+  supplier_id: number;
+  project_id?: number;
+  status: 'Draft' | 'Ordered' | 'In Transit' | 'Received' | 'Cancelled';
+  total_cost: number;
+  order_date: string;
+  expected_delivery_date?: string;
+  actual_delivery_date?: string;
+  notes?: string;
+  created_at: string;
+  supplier?: Supplier;
+  items: PurchaseOrderItem[];
+}
+
+export interface PurchaseOrderFormData {
+  po_number: string;
+  supplier_id: number;
+  project_id?: number;
+  status: 'Draft' | 'Ordered' | 'In Transit' | 'Received' | 'Cancelled';
+  expected_delivery_date: string;
+  notes: string;
+  items: { material_id: number; quantity: number; unit_cost: number }[];
+}
+
+export interface ProjectProfitabilityReportItem {
+  project_id: number;
+  project_number: string;
+  project_name: string;
+  customer_name: string;
+  status: string;
+  contract_amount: number;
+  estimated_cost: number;
+  actual_cost: number;
+  gross_profit: number;
+  profit_margin_percent: number;
+}
+
+export interface MaterialUsageReportItem {
+  material_id: number;
+  material_code: string;
+  material_name: string;
+  category: string;
+  unit: string;
+  current_stock: number;
+  reserved_stock: number;
+  total_consumed_qty: number;
+  total_wastage_qty: number;
+}
+
+export interface DelayedProjectReportItem {
+  project_id: number;
+  project_number: string;
+  project_name: string;
+  customer_name: string;
+  status: string;
+  deadline_date: string;
+  days_overdue: number;
+  assigned_manager?: string;
+}
+
