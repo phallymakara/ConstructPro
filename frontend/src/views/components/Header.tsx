@@ -1,11 +1,17 @@
 import React from 'react';
 import { User, ChevronRight } from 'lucide-react';
 
+import { Link } from '@tanstack/react-router';
+
 interface HeaderProps {
   currentPath: string;
   onRefresh?: () => void;
   isLoading?: boolean;
 }
+
+const isProjectWorkflowPath = (path: string): boolean => {
+  return /^\/projects\/\d+/.test(path);
+};
 
 const getBreadcrumbTitle = (path: string): string => {
   if (path.startsWith('/projects')) return 'Projects Management';
@@ -16,6 +22,7 @@ const getBreadcrumbTitle = (path: string): string => {
 };
 
 export const Header: React.FC<HeaderProps> = ({ currentPath }) => {
+  const isWorkflow = isProjectWorkflowPath(currentPath);
   const title = getBreadcrumbTitle(currentPath);
 
   return (
@@ -24,7 +31,17 @@ export const Header: React.FC<HeaderProps> = ({ currentPath }) => {
         <div className="erp-breadcrumb">
           <span>ConstructPro</span>
           <ChevronRight size={14} />
-          <span className="erp-breadcrumb-active">{title}</span>
+          {isWorkflow ? (
+            <>
+              <Link to="/projects" style={{ textDecoration: 'none', color: 'inherit' }}>
+                <span>Projects</span>
+              </Link>
+              <ChevronRight size={14} />
+              <span className="erp-breadcrumb-active">Project Workspace</span>
+            </>
+          ) : (
+            <span className="erp-breadcrumb-active">{title}</span>
+          )}
         </div>
       </div>
 

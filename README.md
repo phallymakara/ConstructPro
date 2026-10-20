@@ -142,6 +142,17 @@ DATABASE_URL="postgresql://constructpro:constructpro_dev@localhost:5432/construc
 
 Start the FastAPI application:
 
+Using uv (from the backend directory):
+```bash
+uv run uvicorn app.main:app --reload --port 8000
+```
+
+Or from the repository root:
+```bash
+uv run --directory backend uvicorn app.main:app --reload --port 8000
+```
+
+Or using an activated virtual environment:
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```

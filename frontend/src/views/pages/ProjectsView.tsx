@@ -11,12 +11,16 @@ import {
   Hammer,
   SlidersHorizontal,
   Pencil,
-  ChevronDown
+  ChevronDown,
+  FileText,
+  FileDown
 } from 'lucide-react';
+import { useNavigate } from '@tanstack/react-router';
 import { useProjectsController } from '../../controllers/useProjectsController';
 import { StatusBadge } from '../components/StatusBadge';
 import { Modal } from '../components/Modal';
-import type { Project, ProjectStatus, ProjectFormData, ProjectItemFormData } from '../../models/types';
+import { api } from '../../controllers/apiClient';
+import type { Project, ProjectStatus, ProjectFormData, ProjectItemFormData, Customer } from '../../models/types';
 
 const STATUS_OPTIONS: ProjectStatus[] = [
   'Draft',
@@ -45,9 +49,376 @@ const getProjectProgress = (status: ProjectStatus): number => {
   }
 };
 
+const formatShortId = (projectNumber?: string): string => {
+  if (!projectNumber) return '-';
+  const match = projectNumber.match(/^PRJ-\d{4,6}-(\d+)$/);
+  if (match) return `PRJ-${match[1]}`;
+  const parts = projectNumber.split('-');
+  if (parts.length >= 3 && parts[0] === 'PRJ') return `PRJ-${parts[parts.length - 1]}`;
+  return projectNumber;
+};
+
+const formatDateForInput = (dateVal?: string | null): string => {
+  if (!dateVal) return '';
+  const str = String(dateVal).trim();
+  const match = str.match(/^\d{4}-\d{2}-\d{2}/);
+  if (match) return match[0];
+  try {
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+  } catch {
+    return '';
+  }
+  return '';
+};
+
+interface ProjectPersonnelItem {
+  name: string;
+  role: string;
+  scope: string;
+}
+
+interface ExportValidationResult {
+  canExport: boolean;
+  hasPersonnel: boolean;
+  hasMaterials: boolean;
+  reason?: string;
+  personnelList: ProjectPersonnelItem[];
+  materialsList: any[];
+}
+
+const checkProjectExportValidation = (proj: Project): ExportValidationResult => {
+  // 1. Check personnel
+  let personnel: ProjectPersonnelItem[] = [];
+  try {
+    const saved = localStorage.getItem(`project_personnel_${proj.id}`);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        personnel = parsed
+          .filter(p => p && p.name && p.name.trim() !== '' && p.name.trim() !== 'Not assigned')
+          .map(p => ({
+            name: p.name.trim(),
+            role: p.role || 'Personnel',
+            scope: p.scope || 'Project execution'
+          }));
+      }
+    }
+  } catch {}
+
+  // Fallback to project record fields
+  if (personnel.length === 0) {
+    if (proj.assigned_manager && proj.assigned_manager.trim() !== '' && proj.assigned_manager !== 'Not assigned') {
+      personnel.push({
+        name: proj.assigned_manager.trim(),
+        role: 'Lead Engineer / Project Manager',
+        scope: 'Project coordination, technical specifications & site liaison'
+      });
+    }
+    if (proj.architect && proj.architect.trim() !== '' && proj.architect !== 'Not assigned') {
+      personnel.push({
+        name: proj.architect.trim(),
+        role: 'Architect / Designer',
+        scope: 'Architectural specifications & opening dimensions'
+      });
+    }
+    if (proj.worker && proj.worker.trim() !== '' && proj.worker !== 'Not assigned') {
+      const splitWorkers = proj.worker.split(',').map(w => w.trim()).filter(w => w && w !== 'Not assigned');
+      splitWorkers.forEach(w => {
+        personnel.push({
+          name: w,
+          role: 'Workers / Installation Crew',
+          scope: 'Aluminum fabrication, frame assembly, cutting & on-site glazing'
+        });
+      });
+    }
+    if (proj.sales_person && proj.sales_person.trim() !== '' && proj.sales_person !== 'Not assigned') {
+      personnel.push({
+        name: proj.sales_person.trim(),
+        role: 'Salesperson',
+        scope: 'Client communications & commercial representation'
+      });
+    }
+    if (proj.site_supervisor && proj.site_supervisor.trim() !== '' && proj.site_supervisor !== 'Not assigned') {
+      personnel.push({
+        name: proj.site_supervisor.trim(),
+        role: 'Site Supervisor',
+        scope: 'Site safety inspection, installation quality & crew oversight'
+      });
+    }
+  }
+
+  // 2. Check materials
+  let materials: any[] = [];
+  if (proj.material_requirements && proj.material_requirements.length > 0) {
+    materials = proj.material_requirements;
+  } else {
+    try {
+      const savedMat = localStorage.getItem(`project_materials_${proj.id}`);
+      if (savedMat) {
+        const parsedMat = JSON.parse(savedMat);
+        if (Array.isArray(parsedMat) && parsedMat.length > 0) {
+          materials = parsedMat;
+        }
+      }
+    } catch {}
+  }
+
+  const hasPersonnel = personnel.length > 0;
+  const hasMaterials = materials.length > 0;
+  const canExport = hasPersonnel && hasMaterials;
+
+  let reason = '';
+  if (!hasPersonnel && !hasMaterials) {
+    reason = 'Work personnel and project materials have not been assigned yet.';
+  } else if (!hasPersonnel) {
+    reason = 'Work personnel has not been assigned yet.';
+  } else if (!hasMaterials) {
+    reason = 'Project materials have not been assigned yet.';
+  }
+
+  return {
+    canExport,
+    hasPersonnel,
+    hasMaterials,
+    reason,
+    personnelList: personnel,
+    materialsList: materials
+  };
+};
+
+const generateExportDocumentBody = (
+  proj: Project,
+  customerName: string,
+  personnel: ProjectPersonnelItem[],
+  materials: any[]
+): string => {
+  const shortId = formatShortId(proj.project_number);
+  const printDate = new Date().toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+
+  return `
+    <div style="font-family: 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; line-height: 1.5; padding: 24px;">
+      <!-- Header -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0284c7; padding-bottom: 14px; margin-bottom: 20px;">
+        <div>
+          <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #0284c7; letter-spacing: -0.5px;">ConstructPro ERP</h1>
+          <div style="font-size: 13px; color: #64748b; margin-top: 2px;">Project Specification & Dispatch Report</div>
+        </div>
+        <div style="text-align: right; font-size: 12px; color: #64748b;">
+          <div><strong>Date:</strong> ${printDate}</div>
+          <div><strong>Ref:</strong> ${shortId}</div>
+        </div>
+      </div>
+
+      <!-- Project Overview -->
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 13px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px;">
+        <tr>
+          <td style="padding: 8px 12px; font-weight: 600; color: #475569; width: 18%;">Project ID:</td>
+          <td style="padding: 8px 12px; font-weight: 700; color: #0f172a; width: 32%;">${shortId}</td>
+          <td style="padding: 8px 12px; font-weight: 600; color: #475569; width: 18%;">Project Name:</td>
+          <td style="padding: 8px 12px; font-weight: 700; color: #0f172a; width: 32%;">${proj.project_name || '-'}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 12px; font-weight: 600; color: #475569;">Project Type:</td>
+          <td style="padding: 8px 12px; color: #0f172a;">${proj.project_type || 'Window & Door Installation'}</td>
+          <td style="padding: 8px 12px; font-weight: 600; color: #475569;">Status:</td>
+          <td style="padding: 8px 12px; color: #0f172a;"><strong>${proj.status}</strong></td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 12px; font-weight: 600; color: #475569;">Customer:</td>
+          <td style="padding: 8px 12px; color: #0f172a;">${customerName}</td>
+          <td style="padding: 8px 12px; font-weight: 600; color: #475569;">Site Location:</td>
+          <td style="padding: 8px 12px; color: #0f172a;">${proj.location || '-'}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 12px; font-weight: 600; color: #475569;">Start Date:</td>
+          <td style="padding: 8px 12px; color: #0f172a;">${proj.start_date ? new Date(proj.start_date).toLocaleDateString() : '-'}</td>
+          <td style="padding: 8px 12px; font-weight: 600; color: #475569;">Deadline Date:</td>
+          <td style="padding: 8px 12px; color: #0f172a;">${proj.deadline_date ? new Date(proj.deadline_date).toLocaleDateString() : '-'}</td>
+        </tr>
+      </table>
+
+      <!-- Section 1: Work & Personnel -->
+      <h2 style="font-size: 15px; font-weight: 700; color: #0f172a; margin-top: 24px; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
+        1. Assigned Work & Personnel
+      </h2>
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 12px;">
+        <thead>
+          <tr style="background-color: #f1f5f9; text-align: left;">
+            <th style="padding: 8px 10px; border: 1px solid #cbd5e1; width: 5%;">#</th>
+            <th style="padding: 8px 10px; border: 1px solid #cbd5e1; width: 25%;">Name</th>
+            <th style="padding: 8px 10px; border: 1px solid #cbd5e1; width: 30%;">Role</th>
+            <th style="padding: 8px 10px; border: 1px solid #cbd5e1; width: 30%;">Scope</th>
+            <th style="padding: 8px 10px; border: 1px solid #cbd5e1; width: 10%;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${personnel.map((p, idx) => `
+            <tr>
+              <td style="padding: 8px 10px; border: 1px solid #cbd5e1; text-align: center;">${idx + 1}</td>
+              <td style="padding: 8px 10px; border: 1px solid #cbd5e1; font-weight: 600;">${p.name}</td>
+              <td style="padding: 8px 10px; border: 1px solid #cbd5e1;">${p.role}</td>
+              <td style="padding: 8px 10px; border: 1px solid #cbd5e1; color: #475569;">${p.scope}</td>
+              <td style="padding: 8px 10px; border: 1px solid #cbd5e1; text-align: center; color: #047857; font-weight: 600;">Assigned</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+
+      <!-- Section 2: Project Materials -->
+      <h2 style="font-size: 15px; font-weight: 700; color: #0f172a; margin-top: 24px; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
+        2. Assigned Project Materials
+      </h2>
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 12px;">
+        <thead>
+          <tr style="background-color: #f1f5f9; text-align: left;">
+            <th style="padding: 8px 10px; border: 1px solid #cbd5e1; width: 6%;">#</th>
+            <th style="padding: 8px 10px; border: 1px solid #cbd5e1; width: 54%;">Material Name</th>
+            <th style="padding: 8px 10px; border: 1px solid #cbd5e1; width: 22%;">Required Qty</th>
+            <th style="padding: 8px 10px; border: 1px solid #cbd5e1; width: 18%;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${materials.map((m, idx) => `
+            <tr>
+              <td style="padding: 8px 10px; border: 1px solid #cbd5e1; text-align: center;">${idx + 1}</td>
+              <td style="padding: 8px 10px; border: 1px solid #cbd5e1; font-weight: 600;">${m.material_name || m.name || '-'}</td>
+              <td style="padding: 8px 10px; border: 1px solid #cbd5e1;">${m.required_qty ?? '-'}</td>
+              <td style="padding: 8px 10px; border: 1px solid #cbd5e1; text-align: center;">${m.status || 'Ready'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+
+      <!-- Section 3: Sign-off & Verification -->
+      <div style="margin-top: 40px; display: flex; justify-content: space-between; gap: 20px; font-size: 12px;">
+        <div style="border-top: 1px solid #94a3b8; width: 45%; padding-top: 8px;">
+          <div><strong>Prepared & Approved By:</strong></div>
+          <div style="margin-top: 24px; color: #64748b;">Project Manager / Site Supervisor</div>
+        </div>
+        <div style="border-top: 1px solid #94a3b8; width: 45%; padding-top: 8px;">
+          <div><strong>Customer / Site Liaison Acceptance:</strong></div>
+          <div style="margin-top: 24px; color: #64748b;">Signature & Date</div>
+        </div>
+      </div>
+    </div>
+  `;
+};
+
+const exportProjectToPDF = (
+  proj: Project,
+  customerName: string,
+  personnel: ProjectPersonnelItem[],
+  materials: any[]
+) => {
+  const bodyContent = generateExportDocumentBody(proj, customerName, personnel, materials);
+  const printHtml = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>${proj.project_name || 'Project'} - Specification</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+        <style>
+          @media print {
+            @page { size: A4 portrait; margin: 12mm; }
+            body { margin: 0; padding: 0; }
+          }
+          body {
+            font-family: 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #ffffff;
+            margin: 0;
+            padding: 0;
+          }
+        </style>
+      </head>
+      <body>
+        ${bodyContent}
+      </body>
+    </html>
+  `;
+
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow?.document;
+  if (doc) {
+    doc.open();
+    doc.write(printHtml);
+    doc.close();
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+      }, 2000);
+    }, 300);
+  }
+};
+
+const exportProjectToWord = (
+  proj: Project,
+  customerName: string,
+  personnel: ProjectPersonnelItem[],
+  materials: any[]
+) => {
+  const bodyContent = generateExportDocumentBody(proj, customerName, personnel, materials);
+  const wordHtml = `
+    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset="utf-8">
+        <title>${proj.project_name || 'Project'} - Export</title>
+        <style>
+          body { font-family: 'Kantumruy Pro', 'Calibri', 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #0f172a; }
+          table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
+          th { background-color: #f1f5f9; color: #0f172a; border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; font-size: 10pt; }
+          td { border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 10pt; }
+        </style>
+      </head>
+      <body>
+        ${bodyContent}
+      </body>
+    </html>
+  `;
+
+  const blob = new Blob(['\ufeff' + wordHtml], { type: 'application/msword;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  const shortNum = formatShortId(proj.project_number).replace(/[^a-zA-Z0-9_-]/g, '_');
+  const cleanName = (proj.project_name || 'Project').replace(/[^a-zA-Z0-9_-]/g, '_');
+  link.href = url;
+  link.download = `${shortNum}_${cleanName}.doc`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
+
 export const ProjectsView: React.FC = () => {
+  const navigate = useNavigate();
   const {
     projects,
+    customers,
     suppliers,
     selectedProject,
     activeTab,
@@ -67,7 +438,6 @@ export const ProjectsView: React.FC = () => {
     setIsAddItemModalOpen,
     setIsConsumeModalOpen,
     setIsShortagePOModalOpen,
-    selectProject,
     createProject,
     updateProject,
     deleteProject,
@@ -89,11 +459,13 @@ export const ProjectsView: React.FC = () => {
   const [editFormData, setEditFormData] = useState<{
     project_name: string;
     location: string;
+    status: ProjectStatus;
     start_date: string;
     deadline_date: string;
   }>({
     project_name: '',
     location: '',
+    status: 'Draft',
     start_date: '',
     deadline_date: '',
   });
@@ -126,7 +498,9 @@ export const ProjectsView: React.FC = () => {
     deadline_date: '',
     contract_amount: 0,
     notes: '',
+    project_type: 'Window & Door Installation',
   });
+  const [customerNameInput, setCustomerNameInput] = useState<string>('');
 
   // Add Item Form State
   const [newItem, setNewItem] = useState<ProjectItemFormData>({
@@ -155,8 +529,9 @@ export const ProjectsView: React.FC = () => {
     setEditFormData({
       project_name: proj.project_name || '',
       location: proj.location || '',
-      start_date: proj.start_date ? proj.start_date.split('T')[0] : '',
-      deadline_date: proj.deadline_date ? proj.deadline_date.split('T')[0] : '',
+      status: proj.status || 'Draft',
+      start_date: formatDateForInput(proj.start_date),
+      deadline_date: formatDateForInput(proj.deadline_date),
     });
     setEditFormErrors({});
     setIsEditModalOpen(true);
@@ -185,6 +560,7 @@ export const ProjectsView: React.FC = () => {
     const success = await updateProject(projectToEdit.id, {
       project_name: editFormData.project_name.trim(),
       location: editFormData.location.trim(),
+      status: editFormData.status,
       start_date: editFormData.start_date || undefined,
       deadline_date: editFormData.deadline_date || undefined,
     });
@@ -227,8 +603,26 @@ export const ProjectsView: React.FC = () => {
     }
 
     setFormErrors({});
+
+    let customerId = newProject.customer_id;
+    const trimmedCustomer = customerNameInput.trim();
+    if (trimmedCustomer) {
+      const existing = customers.find(c => c.name.toLowerCase() === trimmedCustomer.toLowerCase());
+      if (existing) {
+        customerId = existing.id;
+      } else {
+        try {
+          const newCust = await api.post<Customer>('/customers/', { name: trimmedCustomer });
+          customerId = newCust.id;
+        } catch {
+          // If customer creation fails, continue without customer_id
+        }
+      }
+    }
+
     const success = await createProject({
       ...newProject,
+      customer_id: customerId,
       start_date: newProject.start_date || undefined,
       deadline_date: newProject.deadline_date || undefined,
     });
@@ -242,7 +636,9 @@ export const ProjectsView: React.FC = () => {
         deadline_date: '',
         contract_amount: 0,
         notes: '',
+        project_type: 'Window & Door Installation',
       });
+      setCustomerNameInput('');
     }
   };
 
@@ -348,12 +744,12 @@ export const ProjectsView: React.FC = () => {
         <table className="erp-table">
           <thead>
             <tr>
-              <th>Project ID</th>
               <th>Project Name</th>
               <th>Site Location</th>
               <th>Progress</th>
               <th>Start Date</th>
               <th>End Date</th>
+              <th>Status</th>
               <th style={{ textAlign: 'right' }}>Action</th>
             </tr>
           </thead>
@@ -373,11 +769,23 @@ export const ProjectsView: React.FC = () => {
             ) : (
               projects.map(proj => {
                 const progress = getProjectProgress(proj.status);
+                const exportValidation = checkProjectExportValidation(proj);
+                const customerName = proj.customer?.name || customers.find(c => c.id === proj.customer_id)?.name || '-';
                 return (
                   <tr key={proj.id}>
-                    <td style={{ fontWeight: 600 }}>{proj.project_number}</td>
-                    <td>{proj.project_name}</td>
-                    <td>{proj.location || '-'}</td>
+                    <td
+                      style={{
+                        fontWeight: 400,
+                        fontSize: '14.5px',
+                        color: 'var(--erp-text-main)',
+                        cursor: 'pointer'
+                      }}
+                      title={`Open Workflow & BOM for ${proj.project_name}`}
+                      onClick={() => navigate({ to: `/projects/${proj.id}` })}
+                    >
+                      {proj.project_name}
+                    </td>
+                    <td style={{ fontSize: '13.5px' }}>{proj.location || '-'}</td>
                     <td>
                       <div className="erp-progress-wrapper">
                         <div className="erp-progress-track">
@@ -389,8 +797,11 @@ export const ProjectsView: React.FC = () => {
                         <span className="erp-progress-label">{progress}%</span>
                       </div>
                     </td>
-                    <td>{proj.start_date ? new Date(proj.start_date).toLocaleDateString() : '-'}</td>
-                    <td>{proj.deadline_date ? new Date(proj.deadline_date).toLocaleDateString() : '-'}</td>
+                    <td style={{ fontSize: '13.5px' }}>{proj.start_date ? new Date(proj.start_date).toLocaleDateString() : '-'}</td>
+                    <td style={{ fontSize: '13.5px' }}>{proj.deadline_date ? new Date(proj.deadline_date).toLocaleDateString() : '-'}</td>
+                    <td>
+                      <StatusBadge status={proj.status} />
+                    </td>
                     <td style={{ textAlign: 'right' }}>
                       <div className="erp-dropdown-container">
                         <button
@@ -423,12 +834,58 @@ export const ProjectsView: React.FC = () => {
                               className="erp-dropdown-item"
                               onClick={() => {
                                 setOpenMenuProjectId(null);
-                                selectProject(proj);
-                                setIsManageModalOpen(true);
+                                navigate({ to: `/projects/${proj.id}` });
                               }}
                             >
                               <SlidersHorizontal size={13} />
-                              <span>Workflow & BOM</span>
+                              <span>Project Workspace</span>
+                            </button>
+                            <div className="erp-dropdown-divider" />
+                            <button
+                              type="button"
+                              className={`erp-dropdown-item ${!exportValidation.canExport ? 'disabled' : ''}`}
+                              disabled={!exportValidation.canExport}
+                              title={
+                                exportValidation.canExport
+                                  ? 'Export project specification as PDF'
+                                  : `Cannot export: ${exportValidation.reason}`
+                              }
+                              onClick={() => {
+                                if (!exportValidation.canExport) return;
+                                setOpenMenuProjectId(null);
+                                exportProjectToPDF(
+                                  proj,
+                                  customerName,
+                                  exportValidation.personnelList,
+                                  exportValidation.materialsList
+                                );
+                              }}
+                            >
+                              <FileText size={13} />
+                              <span>Export as PDF</span>
+                            </button>
+                            <button
+                              type="button"
+                              className={`erp-dropdown-item ${!exportValidation.canExport ? 'disabled' : ''}`}
+                              disabled={!exportValidation.canExport}
+                              title={
+                                exportValidation.canExport
+                                  ? 'Export project specification as Word (.doc)'
+                                  : `Cannot export: ${exportValidation.reason}`
+                              }
+                              onClick={() => {
+                                if (!exportValidation.canExport) return;
+                                setOpenMenuProjectId(null);
+                                exportProjectToWord(
+                                  proj,
+                                  customerName,
+                                  exportValidation.personnelList,
+                                  exportValidation.materialsList
+                                );
+                              }}
+                            >
+                              <FileDown size={13} />
+                              <span>Export as Word</span>
                             </button>
                             <div className="erp-dropdown-divider" />
                             <button
@@ -722,6 +1179,42 @@ export const ProjectsView: React.FC = () => {
               {formErrors.project_name && (
                 <span className="erp-form-error">{formErrors.project_name}</span>
               )}
+            </div>
+
+            <div className="erp-form-row">
+              <div className="erp-form-group">
+                <label className="erp-form-label">Customer Name</label>
+                <input
+                  type="text"
+                  list="project-customers-list"
+                  placeholder="Select or enter customer name"
+                  className="erp-input"
+                  value={customerNameInput}
+                  onChange={e => setCustomerNameInput(e.target.value)}
+                />
+                <datalist id="project-customers-list">
+                  {customers.map(c => (
+                    <option key={c.id} value={c.name} />
+                  ))}
+                </datalist>
+              </div>
+
+              <div className="erp-form-group">
+                <label className="erp-form-label">Project Type</label>
+                <select
+                  className="erp-select"
+                  value={newProject.project_type || 'Window & Door Installation'}
+                  onChange={e => setNewProject({ ...newProject, project_type: e.target.value })}
+                >
+                  <option value="Window & Door Installation">Window & Door Installation</option>
+                  <option value="Curtain Wall & Facade">Curtain Wall & Facade</option>
+                  <option value="Glass Partition & Interior">Glass Partition & Interior</option>
+                  <option value="Commercial Storefront">Commercial Storefront</option>
+                  <option value="Residential Glazing">Residential Glazing</option>
+                  <option value="Aluminum Fabrication">Aluminum Fabrication</option>
+                  <option value="Custom Glazing & Metal Works">Custom Glazing & Metal Works</option>
+                </select>
+              </div>
             </div>
 
             <div className="erp-form-group">
@@ -1069,21 +1562,18 @@ export const ProjectsView: React.FC = () => {
 
             <div className="erp-form-group">
               <label className="erp-form-label">Site Location *</label>
-              <div className="erp-input-group">
-                <MapPin className="erp-input-icon" />
-                <input
-                  type="text"
-                  placeholder="Enter site location"
-                  className={`erp-input erp-input-with-icon ${editFormErrors.location ? 'erp-input-error' : ''}`}
-                  value={editFormData.location}
-                  onChange={e => {
-                    setEditFormData({ ...editFormData, location: e.target.value });
-                    if (editFormErrors.location) {
-                      setEditFormErrors(prev => ({ ...prev, location: '' }));
-                    }
-                  }}
-                />
-              </div>
+              <input
+                type="text"
+                placeholder="Enter site location"
+                className={`erp-input ${editFormErrors.location ? 'erp-input-error' : ''}`}
+                value={editFormData.location}
+                onChange={e => {
+                  setEditFormData({ ...editFormData, location: e.target.value });
+                  if (editFormErrors.location) {
+                    setEditFormErrors(prev => ({ ...prev, location: '' }));
+                  }
+                }}
+              />
               {editFormErrors.location && (
                 <span className="erp-form-error">{editFormErrors.location}</span>
               )}
@@ -1092,20 +1582,17 @@ export const ProjectsView: React.FC = () => {
             <div className="erp-form-row">
               <div className="erp-form-group">
                 <label className="erp-form-label">Start Date *</label>
-                <div className="erp-input-group">
-                  <Calendar className="erp-input-icon" />
-                  <input
-                    type="date"
-                    className={`erp-input erp-input-with-icon ${editFormErrors.start_date ? 'erp-input-error' : ''}`}
-                    value={editFormData.start_date}
-                    onChange={e => {
-                      setEditFormData({ ...editFormData, start_date: e.target.value });
-                      if (editFormErrors.start_date) {
-                        setEditFormErrors(prev => ({ ...prev, start_date: '' }));
-                      }
-                    }}
-                  />
-                </div>
+                <input
+                  type="date"
+                  className={`erp-input ${editFormErrors.start_date ? 'erp-input-error' : ''}`}
+                  value={editFormData.start_date}
+                  onChange={e => {
+                    setEditFormData({ ...editFormData, start_date: e.target.value });
+                    if (editFormErrors.start_date) {
+                      setEditFormErrors(prev => ({ ...prev, start_date: '' }));
+                    }
+                  }}
+                />
                 {editFormErrors.start_date && (
                   <span className="erp-form-error">{editFormErrors.start_date}</span>
                 )}
@@ -1113,24 +1600,34 @@ export const ProjectsView: React.FC = () => {
 
               <div className="erp-form-group">
                 <label className="erp-form-label">End Date *</label>
-                <div className="erp-input-group">
-                  <Calendar className="erp-input-icon" />
-                  <input
-                    type="date"
-                    className={`erp-input erp-input-with-icon ${editFormErrors.deadline_date ? 'erp-input-error' : ''}`}
-                    value={editFormData.deadline_date}
-                    onChange={e => {
-                      setEditFormData({ ...editFormData, deadline_date: e.target.value });
-                      if (editFormErrors.deadline_date) {
-                        setEditFormErrors(prev => ({ ...prev, deadline_date: '' }));
-                      }
-                    }}
-                  />
-                </div>
+                <input
+                  type="date"
+                  className={`erp-input ${editFormErrors.deadline_date ? 'erp-input-error' : ''}`}
+                  value={editFormData.deadline_date}
+                  onChange={e => {
+                    setEditFormData({ ...editFormData, deadline_date: e.target.value });
+                    if (editFormErrors.deadline_date) {
+                      setEditFormErrors(prev => ({ ...prev, deadline_date: '' }));
+                    }
+                  }}
+                />
                 {editFormErrors.deadline_date && (
                   <span className="erp-form-error">{editFormErrors.deadline_date}</span>
                 )}
               </div>
+            </div>
+
+            <div className="erp-form-group">
+              <label className="erp-form-label">Workflow Status</label>
+              <select
+                className="erp-select"
+                value={editFormData.status}
+                onChange={e => setEditFormData({ ...editFormData, status: e.target.value as ProjectStatus })}
+              >
+                {STATUS_OPTIONS.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
             </div>
           </div>
 

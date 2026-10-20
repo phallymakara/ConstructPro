@@ -4,6 +4,8 @@ import type { DashboardSummary, Project, Material } from '../models/types';
 
 export function useDashboardController() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
+  const [allMaterials, setAllMaterials] = useState<Material[]>([]);
   const [recentProjects, setRecentProjects] = useState<Project[]>([]);
   const [lowStockMaterials, setLowStockMaterials] = useState<Material[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -19,6 +21,8 @@ export function useDashboardController() {
         api.get<Material[]>('/materials/'),
       ]);
       setSummary(sumData);
+      setAllProjects(projData);
+      setAllMaterials(matData);
       setRecentProjects(projData.slice(0, 5));
       setLowStockMaterials(matData.filter(m => m.current_stock <= m.minimum_stock));
     } catch (err: any) {
@@ -35,6 +39,8 @@ export function useDashboardController() {
   return {
     summary,
     recentProjects,
+    allProjects,
+    allMaterials,
     lowStockMaterials,
     isLoading,
     errorMessage,

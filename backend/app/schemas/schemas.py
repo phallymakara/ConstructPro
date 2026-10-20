@@ -9,6 +9,8 @@ class CustomerBase(BaseModel):
     email: Optional[str] = None
     company: Optional[str] = None
     address: Optional[str] = None
+    contact_person: Optional[str] = None
+    preferred_contact_method: Optional[str] = "Phone"
     notes: Optional[str] = None
 
 class CustomerCreate(CustomerBase):
@@ -20,6 +22,8 @@ class CustomerUpdate(BaseModel):
     email: Optional[str] = None
     company: Optional[str] = None
     address: Optional[str] = None
+    contact_person: Optional[str] = None
+    preferred_contact_method: Optional[str] = None
     notes: Optional[str] = None
 
 class CustomerOut(CustomerBase):
@@ -126,6 +130,52 @@ class MaterialRequirementOut(BaseModel):
     wastage_percent: float
     status: str
     available_stock: Optional[float] = 0.0
+    unit_cost: Optional[float] = 0.0
+
+    class Config:
+        from_attributes = True
+
+
+class MaterialRequirementCreate(BaseModel):
+    material_id: int
+    required_qty: float
+    wastage_percent: Optional[float] = 0.0
+
+
+# --- Project Payment Schemas ---
+class ProjectPaymentBase(BaseModel):
+    amount: float = Field(..., gt=0)
+    payment_date: Optional[datetime] = None
+    payment_method: str = Field("Bank Transfer")
+    reference_number: Optional[str] = None
+    notes: Optional[str] = None
+
+class ProjectPaymentCreate(ProjectPaymentBase):
+    pass
+
+class ProjectPaymentOut(ProjectPaymentBase):
+    id: int
+    project_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# --- Project Worker Log Schemas ---
+class ProjectWorkerLogBase(BaseModel):
+    worker_name: str
+    hours_worked: float = Field(..., gt=0)
+    work_date: Optional[datetime] = None
+    task_description: Optional[str] = None
+
+class ProjectWorkerLogCreate(ProjectWorkerLogBase):
+    pass
+
+class ProjectWorkerLogOut(ProjectWorkerLogBase):
+    id: int
+    project_id: int
+    created_at: datetime
 
     class Config:
         from_attributes = True
@@ -141,10 +191,28 @@ class ProjectBase(BaseModel):
     assigned_manager: Optional[str] = None
     start_date: Optional[datetime] = None
     deadline_date: Optional[datetime] = None
+    actual_start_date: Optional[datetime] = None
+    actual_end_date: Optional[datetime] = None
     contract_amount: float = Field(0.0, ge=0)
+    architect: Optional[str] = None
+    worker: Optional[str] = None
+    sales_person: Optional[str] = None
+    project_type: Optional[str] = "Window & Door Installation"
+    customer_paid: float = Field(0.0, ge=0)
+    service_selling: float = Field(0.0, ge=0)
+    service_cost: float = Field(0.0, ge=0)
+    effort_hours: float = Field(0.0, ge=0)
+    effort_completed_hours: float = Field(0.0, ge=0)
     notes: Optional[str] = None
+    priority: Optional[str] = "Medium"
+    customer_representative: Optional[str] = None
+    site_supervisor: Optional[str] = None
+    material_cost: Optional[float] = Field(0.0, ge=0)
+    labor_cost: Optional[float] = Field(0.0, ge=0)
+    other_expenses: Optional[float] = Field(0.0, ge=0)
+    preferred_contact_method: Optional[str] = "Phone"
 
-    @field_validator("start_date", "deadline_date", mode="before")
+    @field_validator("start_date", "deadline_date", "actual_start_date", "actual_end_date", mode="before")
     @classmethod
     def empty_date_to_none(cls, v):
         if isinstance(v, str) and not v.strip():
@@ -162,8 +230,33 @@ class ProjectUpdate(BaseModel):
     assigned_manager: Optional[str] = None
     start_date: Optional[datetime] = None
     deadline_date: Optional[datetime] = None
+    actual_start_date: Optional[datetime] = None
+    actual_end_date: Optional[datetime] = None
     contract_amount: Optional[float] = None
+    architect: Optional[str] = None
+    worker: Optional[str] = None
+    sales_person: Optional[str] = None
+    project_type: Optional[str] = None
+    customer_paid: Optional[float] = None
+    service_selling: Optional[float] = None
+    service_cost: Optional[float] = None
+    effort_hours: Optional[float] = None
+    effort_completed_hours: Optional[float] = None
     notes: Optional[str] = None
+    priority: Optional[str] = None
+    customer_representative: Optional[str] = None
+    site_supervisor: Optional[str] = None
+    material_cost: Optional[float] = None
+    labor_cost: Optional[float] = None
+    other_expenses: Optional[float] = None
+    preferred_contact_method: Optional[str] = None
+
+    @field_validator("start_date", "deadline_date", "actual_start_date", "actual_end_date", mode="before")
+    @classmethod
+    def empty_date_to_none(cls, v):
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v
 
 class ProjectOut(ProjectBase):
     id: int
@@ -173,6 +266,8 @@ class ProjectOut(ProjectBase):
     customer: Optional[CustomerOut] = None
     items: List[ProjectItemOut] = []
     material_requirements: List[MaterialRequirementOut] = []
+    payments: List[ProjectPaymentOut] = []
+    worker_logs: List[ProjectWorkerLogOut] = []
 
     class Config:
         from_attributes = True

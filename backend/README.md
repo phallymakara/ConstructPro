@@ -47,6 +47,14 @@ pip install -r pyproject.toml
 
 ### 3. Run the Development Server
 
+Using uv:
+
+```bash
+uv run uvicorn app.main:app --reload --port 8000
+```
+
+Or using an activated virtual environment:
+
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```

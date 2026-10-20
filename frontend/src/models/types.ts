@@ -5,6 +5,8 @@ export interface Customer {
   email?: string;
   company?: string;
   address?: string;
+  contact_person?: string;
+  preferred_contact_method?: string;
   notes?: string;
   created_at: string;
 }
@@ -15,6 +17,8 @@ export interface CustomerFormData {
   email: string;
   company: string;
   address: string;
+  contact_person?: string;
+  preferred_contact_method?: string;
   notes: string;
 }
 
@@ -98,6 +102,28 @@ export interface MaterialRequirement {
   wastage_percent: number;
   status: 'Pending' | 'Reserved' | 'Shortage' | 'Issued';
   available_stock: number;
+  unit_cost?: number;
+}
+
+export interface ProjectPayment {
+  id: number;
+  project_id: number;
+  amount: number;
+  payment_date?: string;
+  payment_method: string;
+  reference_number?: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface ProjectWorkerLog {
+  id: number;
+  project_id: number;
+  worker_name: string;
+  hours_worked: number;
+  work_date?: string;
+  task_description?: string;
+  created_at: string;
 }
 
 export type ProjectStatus =
@@ -124,11 +150,32 @@ export interface Project {
   estimated_cost: number;
   actual_cost: number;
   contract_amount: number;
+  architect?: string;
+  worker?: string;
+  sales_person?: string;
+  project_type?: string;
+  customer_paid?: number;
+  service_selling?: number;
+  service_cost?: number;
+  effort_hours?: number;
+  effort_completed_hours?: number;
+  priority?: 'Low' | 'Medium' | 'High' | 'Urgent';
+  customer_representative?: string;
+  site_supervisor?: string;
+  actual_start_date?: string;
+  actual_end_date?: string;
+  material_cost?: number;
+  labor_cost?: number;
+  other_expenses?: number;
+  preferred_contact_method?: string;
   notes?: string;
+  description?: string;
   created_at: string;
   customer?: Customer;
   items: ProjectItem[];
   material_requirements: MaterialRequirement[];
+  payments?: ProjectPayment[];
+  worker_logs?: ProjectWorkerLog[];
 }
 
 export interface ProjectFormData {
@@ -141,6 +188,15 @@ export interface ProjectFormData {
   start_date?: string;
   deadline_date?: string;
   contract_amount?: number;
+  architect?: string;
+  worker?: string;
+  sales_person?: string;
+  project_type?: string;
+  customer_paid?: number;
+  service_selling?: number;
+  service_cost?: number;
+  effort_hours?: number;
+  effort_completed_hours?: number;
   notes?: string;
   items?: ProjectItemFormData[];
 }

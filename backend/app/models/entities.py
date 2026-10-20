@@ -49,6 +49,8 @@ class Customer(Base):
     email = Column(String(100), nullable=True)
     company = Column(String(255), nullable=True)
     address = Column(Text, nullable=True)
+    contact_person = Column(String(100), nullable=True)
+    preferred_contact_method = Column(String(50), default="Phone")
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -90,16 +92,63 @@ class Project(Base):
     assigned_manager = Column(String(100), nullable=True)
     start_date = Column(DateTime, nullable=True)
     deadline_date = Column(DateTime, nullable=True)
+    actual_start_date = Column(DateTime, nullable=True)
+    actual_end_date = Column(DateTime, nullable=True)
     estimated_cost = Column(Float, default=0.0)
     actual_cost = Column(Float, default=0.0)
     contract_amount = Column(Float, default=0.0)
+    architect = Column(String(100), nullable=True)
+    worker = Column(String(255), nullable=True)
+    sales_person = Column(String(100), nullable=True)
+    project_type = Column(String(100), default="Window & Door Installation")
+    customer_paid = Column(Float, default=0.0)
+    service_selling = Column(Float, default=0.0)
+    service_cost = Column(Float, default=0.0)
+    effort_hours = Column(Float, default=0.0)
+    effort_completed_hours = Column(Float, default=0.0)
     notes = Column(Text, nullable=True)
+    priority = Column(String(50), default="Medium")
+    customer_representative = Column(String(100), nullable=True)
+    site_supervisor = Column(String(100), nullable=True)
+    material_cost = Column(Float, default=0.0)
+    labor_cost = Column(Float, default=0.0)
+    other_expenses = Column(Float, default=0.0)
+    preferred_contact_method = Column(String(50), default="Phone")
     created_at = Column(DateTime, default=datetime.utcnow)
 
     customer = relationship("Customer", back_populates="projects")
     items = relationship("ProjectItem", back_populates="project", cascade="all, delete-orphan")
     quotations = relationship("Quotation", back_populates="project")
     material_requirements = relationship("ProjectMaterialRequirement", back_populates="project", cascade="all, delete-orphan")
+    payments = relationship("ProjectPayment", back_populates="project", cascade="all, delete-orphan")
+    worker_logs = relationship("ProjectWorkerLog", back_populates="project", cascade="all, delete-orphan")
+
+class ProjectPayment(Base):
+    __tablename__ = "project_payments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    amount = Column(Float, nullable=False)
+    payment_date = Column(DateTime, default=datetime.utcnow)
+    payment_method = Column(String(50), default="Bank Transfer")  # Cash, Bank Transfer, Cheque, Credit Card
+    reference_number = Column(String(100), nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship("Project", back_populates="payments")
+
+class ProjectWorkerLog(Base):
+    __tablename__ = "project_worker_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    worker_name = Column(String(100), nullable=False)
+    hours_worked = Column(Float, nullable=False)
+    work_date = Column(DateTime, default=datetime.utcnow)
+    task_description = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship("Project", back_populates="worker_logs")
 
 class ProjectItem(Base):
     __tablename__ = "project_items"

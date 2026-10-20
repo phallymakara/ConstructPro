@@ -10,6 +10,7 @@ import { Sidebar } from './views/components/Sidebar';
 import { Header } from './views/components/Header';
 import { DashboardView } from './views/pages/DashboardView';
 import { ProjectsView } from './views/pages/ProjectsView';
+import { ProjectWorkflowView } from './views/pages/ProjectWorkflowView';
 import { InventoryView } from './views/pages/InventoryView';
 import { PurchasingView } from './views/pages/PurchasingView';
 import { ReportsView } from './views/pages/ReportsView';
@@ -73,6 +74,12 @@ const projectsRoute = createRoute({
   component: ProjectsView,
 });
 
+const projectWorkflowRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects/$projectId',
+  component: ProjectWorkflowView,
+});
+
 const inventoryRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/inventory',
@@ -102,6 +109,7 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   dashboardRoute,
   projectsRoute,
+  projectWorkflowRoute,
   inventoryRoute,
   materialsRedirectRoute,
   purchasingRoute,

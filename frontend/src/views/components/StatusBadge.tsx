@@ -13,7 +13,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
       break;
     case 'Quotation':
     case 'Sent':
-      badgeClass = 'erp-badge-blue';
+      badgeClass = 'erp-badge-quotation';
       break;
     case 'Approved':
     case 'Completed':
