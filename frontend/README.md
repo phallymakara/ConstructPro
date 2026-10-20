@@ -1,32 +1,43 @@
-# React + TypeScript + Vite
+# ConstructPro Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Web interface for the ConstructPro project and material management system.
 
-Currently, two official plugins are available:
+## Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Single-page web application providing interactive workflows for projects, materials inventory, quotations, purchasing, supplier directory, customer records, and analytics.
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- React 19
+- TypeScript
+- TanStack Router
+- Lucide React (Icons)
+- Vite
 
-## Expanding the Oxlint configuration
+## Quickstart
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+### 1. Install Dependencies
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+### 2. Start Local Development Server
+
+```bash
+npm run dev
+```
+
+The application runs at `http://localhost:5173`.
+
+### 3. Build for Production
+
+```bash
+npm run build
+```
+
+### 4. Code Quality and Linting
+
+```bash
+npm run lint
+```

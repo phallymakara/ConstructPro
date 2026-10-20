@@ -1,4 +1,4 @@
-/* ConstructPro ERPNet Theme - Clean Enterprise Design System */
+/* ConstructPro Theme - Clean Enterprise Design System */
 :root {
   --erp-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --erp-mono-font: 'JetBrains Mono', SFMono-Regular, Consolas, monospace;
@@ -26,7 +26,7 @@
   --erp-border-focus: #2563eb;
   --erp-border-error: #dc2626;
 
-  /* ERPNet Slate Sidebar */
+  /* Slate Sidebar */
   --erp-sidebar-bg: #0f172a;
   --erp-sidebar-surface: #1e293b;
   --erp-sidebar-border: #334155;
@@ -127,7 +127,7 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* ERPNet App Layout */
+/* App Layout */
 .erp-layout {
   display: flex;
   height: 100vh;

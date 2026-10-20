@@ -28,7 +28,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath }) => {
         <div className="erp-brand-logo">
           <Hammer size={16} />
         </div>
-        <span className="erp-brand-title">ConstructPro ERP</span>
+        <span className="erp-brand-title">ConstructPro</span>
       </div>
 
       <div className="erp-nav-section-label">Operations</div>
