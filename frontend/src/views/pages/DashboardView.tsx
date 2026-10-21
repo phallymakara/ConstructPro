@@ -4,25 +4,10 @@ import {
   FolderKanban,
   XCircle,
   AlertTriangle,
-  TrendingUp,
   Boxes,
-  PieChart as PieIcon,
-  BarChart3,
-  ChevronRight,
-  Clock,
-  Calendar
+  ChevronRight
 } from 'lucide-react';
 import { useDashboardController } from '../../controllers/useDashboardController';
-import { StatusBadge } from '../components/StatusBadge';
-
-const formatShortId = (projectNumber?: string): string => {
-  if (!projectNumber) return '-';
-  const match = projectNumber.match(/^PRJ-\d{4,6}-(\d+)$/);
-  if (match) return `PRJ-${match[1]}`;
-  const parts = projectNumber.split('-');
-  if (parts.length >= 3 && parts[0] === 'PRJ') return `PRJ-${parts[parts.length - 1]}`;
-  return projectNumber;
-};
 
 // Generates smooth cubic Bezier path for SVG line charts
 function generateSmoothPath(points: { x: number; y: number }[]): string {
@@ -228,136 +213,21 @@ export const DashboardView: React.FC = () => {
     });
   }, [stageBreakdown, donutCircumference]);
 
-  // 3. Project Types & Architectural Scope Distribution
-  const projectTypeDistribution = useMemo(() => {
-    const map = new Map<string, { count: number; totalRevenue: number }>();
-    const total = allProjects.length;
-
-    allProjects.forEach(p => {
-      const type = p.project_type?.trim() || 'General Fabrication';
-      const existing = map.get(type) || { count: 0, totalRevenue: 0 };
-      existing.count += 1;
-      existing.totalRevenue += (p.contract_amount || 0);
-      map.set(type, existing);
-    });
-
-    // Color palette for scopes
-    const colors = ['#0284c7', '#8b5cf6', '#059669', '#f59e0b', '#06b6d4', '#ec4899'];
-    let idx = 0;
-
-    return Array.from(map.entries()).map(([type, data]) => {
-      const pct = total > 0 ? (data.count / total) * 100 : 0;
-      const color = colors[idx % colors.length];
-      idx++;
-      return {
-        type,
-        count: data.count,
-        revenue: data.totalRevenue,
-        percent: pct,
-        color,
-      };
-    });
-  }, [allProjects]);
-
-  // 4. Financial Cost Structure & Margin Realization
-  const financialCostStructure = useMemo(() => {
-    const totalRev = summary?.total_contract_value ?? 0;
-    
-    let materialCost = 0;
-    let laborCost = 0;
-    let serviceCost = 0;
-    let otherCost = 0;
-
-    allProjects.forEach(p => {
-      materialCost += (p.material_cost || 0);
-      laborCost += (p.labor_cost || 0);
-      serviceCost += (p.service_cost || 0);
-      otherCost += (p.other_expenses || 0);
-    });
-
-    const totalDirectCosts = materialCost + laborCost + serviceCost + otherCost;
-    const profit = summary?.projected_profit ?? Math.max(0, totalRev - totalDirectCosts);
-    const profitMargin = totalRev > 0 ? ((profit / totalRev) * 100).toFixed(1) : '0.0';
-
-    const baseSum = (materialCost + laborCost + serviceCost + otherCost + profit) || (totalRev > 0 ? totalRev : 1);
-    const materialPct = Math.min(100, Math.round((materialCost / baseSum) * 100));
-    const laborPct = Math.min(100, Math.round((laborCost / baseSum) * 100));
-    const servicePct = Math.min(100, Math.round(((serviceCost + otherCost) / baseSum) * 100));
-    const profitPct = Math.max(0, 100 - (materialPct + laborPct + servicePct));
-
-    return {
-      totalRev,
-      materialCost,
-      laborCost,
-      serviceCost: serviceCost + otherCost,
-      profit,
-      profitMargin,
-      materialPct: materialPct || 35,
-      laborPct: laborPct || 25,
-      servicePct: servicePct || 10,
-      profitPct: profitPct || 30,
-    };
-  }, [allProjects, summary]);
-
-  // 5. Schedule Milestones & Upcoming Delivery Deadlines
-  const scheduleHealth = useMemo(() => {
-    const now = new Date();
-    const activeProjects = allProjects.filter(p => p.status !== 'Completed' && p.status !== 'Cancelled');
-    
-    let onTimeCount = 0;
-    let overdueCount = 0;
-
-    const upcomingList = activeProjects
-      .filter(p => p.deadline_date)
-      .map(p => {
-        const d = new Date(p.deadline_date!);
-        const diffMs = d.getTime() - now.getTime();
-        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-        const isOverdue = diffDays < 0;
-
-        if (isOverdue) {
-          overdueCount++;
-        } else {
-          onTimeCount++;
-        }
-
-        return {
-          id: p.id,
-          project_number: p.project_number,
-          project_name: p.project_name,
-          deadline_date: p.deadline_date!,
-          diffDays,
-          isOverdue,
-          status: p.status,
-        };
-      })
-      .sort((a, b) => a.diffDays - b.diffDays)
-      .slice(0, 3);
-
-    const totalActiveWithDeadline = onTimeCount + overdueCount;
-    const onTimeRate = totalActiveWithDeadline > 0 
-      ? Math.round((onTimeCount / totalActiveWithDeadline) * 100) 
-      : 100;
-
-    return {
-      onTimeCount,
-      overdueCount,
-      onTimeRate,
-      upcomingList,
-    };
-  }, [allProjects]);
-
   // KPI calculations
-  const totalProjects = summary?.total_projects ?? 0;
-  const totalContract = summary?.total_contract_value ?? 0;
   const totalMaterialItems = allMaterials.length;
   const lowStockCount = summary?.low_stock_count ?? 0;
   const optimalPercent = totalMaterialItems > 0 
     ? Math.round(((totalMaterialItems - lowStockCount) / totalMaterialItems) * 100) 
     : 100;
   
+  const totalProjects = summary?.total_projects ?? allProjects.length;
+  const totalContract = summary?.total_contract_value ?? 0;
   const cancelledProjectsCount = allProjects.filter(p => p.status === 'Cancelled').length;
-  const overdueProjectsCount = summary?.delayed_projects ?? scheduleHealth.overdueCount;
+  const now = new Date();
+  const overdueProjectsCount = summary?.delayed_projects ?? allProjects.filter(p => {
+    if (p.status === 'Completed' || p.status === 'Cancelled' || !p.deadline_date) return false;
+    return new Date(p.deadline_date).getTime() < now.getTime();
+  }).length;
 
   if (isLoading && !summary) {
     return (
@@ -490,14 +360,8 @@ export const DashboardView: React.FC = () => {
           {/* Chart 1: Financial & Production Velocity Timeline Area Chart */}
           <div className="erp-chart-card">
             <div className="erp-chart-header">
-              <div>
-                <div className="erp-chart-title">
-                  <BarChart3 size={16} color="var(--erp-primary)" />
-                  <span>Pipeline & Revenue Velocity</span>
-                </div>
-                <div className="erp-chart-subtitle">
-                  Monthly trend analysis of contracted project volume and revenue
-                </div>
+              <div className="erp-chart-title">
+                <span>Pipeline & Revenue Velocity</span>
               </div>
 
               {/* Metric Toggle Buttons */}
@@ -682,14 +546,8 @@ export const DashboardView: React.FC = () => {
           {/* Chart 2: Project Lifecycle Stage Distribution (Donut & Stage Bars) */}
           <div className="erp-chart-card">
             <div className="erp-chart-header">
-              <div>
-                <div className="erp-chart-title">
-                  <PieIcon size={16} color="#6366f1" />
-                  <span>Workflow & Lifecycle Distribution</span>
-                </div>
-                <div className="erp-chart-subtitle">
-                  Work orders categorized across active fabrication stages
-                </div>
+              <div className="erp-chart-title">
+                <span>Workflow & Lifecycle Distribution</span>
               </div>
             </div>
 
@@ -836,263 +694,6 @@ export const DashboardView: React.FC = () => {
                 }}
               >
                 <span>Pipeline View</span>
-                <ChevronRight size={12} />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* 3. Secondary Analytics Grid: Portfolio Scope, Cost Structure & Schedule Health */}
-        <div className="erp-charts-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
-          {/* Card 3: Fabrication Scope & Work Categories */}
-          <div className="erp-chart-card">
-            <div className="erp-chart-header">
-              <div>
-                <div className="erp-chart-title">
-                  <Boxes size={16} color="var(--erp-primary)" />
-                  <span>Fabrication Scope & Work Categories</span>
-                </div>
-                <div className="erp-chart-subtitle">
-                  Distribution across architectural systems and project types
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minHeight: '140px', justifyContent: 'center' }}>
-              {projectTypeDistribution.length === 0 ? (
-                <div style={{ textAlign: 'center', color: 'var(--erp-text-muted)', fontSize: '12px', padding: '16px' }}>
-                  No project scope records available.
-                </div>
-              ) : (
-                projectTypeDistribution.map(item => (
-                  <div key={item.type} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11.5px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span
-                          style={{
-                            width: '8px',
-                            height: '8px',
-                            borderRadius: '2px',
-                            backgroundColor: item.color,
-                          }}
-                        />
-                        <span style={{ fontWeight: 500, color: 'var(--erp-text-main)' }}>{item.type}</span>
-                        <span style={{ fontSize: '10.5px', color: 'var(--erp-text-muted)', backgroundColor: '#f1f5f9', padding: '1px 5px', borderRadius: 'var(--erp-radius-pill)' }}>
-                          {item.count} {item.count === 1 ? 'project' : 'projects'}
-                        </span>
-                      </div>
-                      <span style={{ fontWeight: 600, fontFamily: 'var(--erp-mono-font)', color: 'var(--erp-text-main)' }}>
-                        ${item.revenue.toLocaleString()}
-                      </span>
-                    </div>
-
-                    <div className="erp-progress-track" style={{ height: '5px' }}>
-                      <div
-                        className="erp-progress-fill"
-                        style={{
-                          width: `${item.percent}%`,
-                          backgroundColor: item.color,
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div style={{ borderTop: '1px solid var(--erp-border)', paddingTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--erp-text-muted)' }}>
-              <span>{projectTypeDistribution.length} Distinct Work Disciplines</span>
-              <span style={{ fontWeight: 600, color: 'var(--erp-text-main)' }}>
-                {totalProjects} Works Total
-              </span>
-            </div>
-          </div>
-
-          {/* Card 4: Financial Cost Structure & Margin Realization */}
-          <div className="erp-chart-card">
-            <div className="erp-chart-header">
-              <div>
-                <div className="erp-chart-title">
-                  <TrendingUp size={16} color="#059669" />
-                  <span>Cost Structure & Margin Realization</span>
-                </div>
-                <div className="erp-chart-subtitle">
-                  Direct material, labor, and profit distribution across portfolio
-                </div>
-              </div>
-            </div>
-
-            {/* Stacked Multi-Segment Bar */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ width: '100%', height: '10px', borderRadius: 'var(--erp-radius-pill)', overflow: 'hidden', display: 'flex', border: '1px solid var(--erp-border)' }}>
-                <div style={{ width: `${financialCostStructure.materialPct}%`, backgroundColor: '#0284c7' }} title={`Materials: ${financialCostStructure.materialPct}%`} />
-                <div style={{ width: `${financialCostStructure.laborPct}%`, backgroundColor: '#8b5cf6' }} title={`Labor: ${financialCostStructure.laborPct}%`} />
-                <div style={{ width: `${financialCostStructure.servicePct}%`, backgroundColor: '#f59e0b' }} title={`Services: ${financialCostStructure.servicePct}%`} />
-                <div style={{ width: `${financialCostStructure.profitPct}%`, backgroundColor: '#10b981' }} title={`Profit: ${financialCostStructure.profitPct}%`} />
-              </div>
-
-              {/* Breakdown Rows */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11.5px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: '#0284c7' }} />
-                    <span style={{ color: 'var(--erp-text-muted)' }}>Direct Materials</span>
-                  </div>
-                  <span style={{ fontWeight: 600, fontFamily: 'var(--erp-mono-font)' }}>
-                    ${financialCostStructure.materialCost.toLocaleString()}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: '#8b5cf6' }} />
-                    <span style={{ color: 'var(--erp-text-muted)' }}>Fabrication Labor</span>
-                  </div>
-                  <span style={{ fontWeight: 600, fontFamily: 'var(--erp-mono-font)' }}>
-                    ${financialCostStructure.laborCost.toLocaleString()}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: '#f59e0b' }} />
-                    <span style={{ color: 'var(--erp-text-muted)' }}>Services & Overheads</span>
-                  </div>
-                  <span style={{ fontWeight: 600, fontFamily: 'var(--erp-mono-font)' }}>
-                    ${financialCostStructure.serviceCost.toLocaleString()}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px dashed var(--erp-border)', paddingTop: '4px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: '#10b981' }} />
-                    <span style={{ fontWeight: 600, color: 'var(--erp-text-main)' }}>Gross Realized Profit</span>
-                  </div>
-                  <span style={{ fontWeight: 700, fontFamily: 'var(--erp-mono-font)', color: '#059669' }}>
-                    ${financialCostStructure.profit.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ borderTop: '1px solid var(--erp-border)', paddingTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--erp-text-muted)' }}>
-              <span>Portfolio Total Billing: ${financialCostStructure.totalRev.toLocaleString()}</span>
-              <span style={{ fontWeight: 600, color: '#059669' }}>
-                {financialCostStructure.profitMargin}% Margin
-              </span>
-            </div>
-          </div>
-
-          {/* Card 5: Schedule Milestones & Delivery Health */}
-          <div className="erp-chart-card">
-            <div className="erp-chart-header">
-              <div>
-                <div className="erp-chart-title">
-                  <Clock size={16} color="#6366f1" />
-                  <span>Delivery Schedule & Milestones</span>
-                </div>
-                <div className="erp-chart-subtitle">
-                  On-time delivery performance and active target deadlines
-                </div>
-              </div>
-            </div>
-
-            {/* Compliance Adherence Meter */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11.5px' }}>
-                <span style={{ color: 'var(--erp-text-muted)' }}>Milestone Adherence Rate</span>
-                <span style={{ fontWeight: 600, color: scheduleHealth.onTimeRate >= 80 ? '#059669' : '#dc2626' }}>
-                  {scheduleHealth.onTimeRate}% on schedule
-                </span>
-              </div>
-              <div className="erp-progress-track" style={{ height: '6px' }}>
-                <div
-                  className="erp-progress-fill"
-                  style={{
-                    width: `${scheduleHealth.onTimeRate}%`,
-                    backgroundColor: scheduleHealth.onTimeRate >= 80 ? '#10b981' : '#ef4444',
-                  }}
-                />
-              </div>
-
-              {/* Upcoming Target Deadlines List */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
-                {scheduleHealth.upcomingList.length === 0 ? (
-                  <div style={{ textAlign: 'center', color: 'var(--erp-text-muted)', fontSize: '12px', padding: '12px' }}>
-                    No upcoming deadlines set for active projects.
-                  </div>
-                ) : (
-                  scheduleHealth.upcomingList.map(item => (
-                    <div
-                      key={item.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '6px 8px',
-                        backgroundColor: '#f8fafc',
-                        border: '1px solid var(--erp-border)',
-                        borderRadius: 'var(--erp-radius-sm)',
-                        fontSize: '11.5px',
-                        cursor: 'pointer',
-                      }}
-                      onClick={() => navigate({ to: `/projects/${item.id}` })}
-                    >
-                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, paddingRight: '6px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontFamily: 'var(--erp-mono-font)', fontWeight: 600, color: 'var(--erp-primary)', fontSize: '11px' }}>
-                            {formatShortId(item.project_number)}
-                          </span>
-                          <span style={{ fontWeight: 500, color: 'var(--erp-text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {item.project_name}
-                          </span>
-                        </div>
-                        <span style={{ fontSize: '10.5px', color: 'var(--erp-text-muted)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                          <Calendar size={10} />
-                          {new Date(item.deadline_date).toLocaleDateString()}
-                        </span>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                        <span
-                          style={{
-                            fontSize: '10px',
-                            fontWeight: 600,
-                            padding: '1px 6px',
-                            borderRadius: 'var(--erp-radius-pill)',
-                            backgroundColor: item.isOverdue ? '#fef2f2' : '#eff6ff',
-                            color: item.isOverdue ? '#dc2626' : '#1d4ed8',
-                            border: `1px solid ${item.isOverdue ? '#fecaca' : '#bfdbfe'}`,
-                          }}
-                        >
-                          {item.isOverdue ? 'Overdue' : `${item.diffDays}d left`}
-                        </span>
-                        <StatusBadge status={item.status} />
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div style={{ borderTop: '1px solid var(--erp-border)', paddingTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--erp-text-muted)' }}>
-              <span>{scheduleHealth.onTimeCount} On-Track • {scheduleHealth.overdueCount} Overdue</span>
-              <button
-                onClick={() => navigate({ to: '/projects' })}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: 0,
-                  color: 'var(--erp-primary)',
-                  fontWeight: 600,
-                  fontSize: '11px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '3px',
-                }}
-              >
-                <span>All Projects</span>
                 <ChevronRight size={12} />
               </button>
             </div>

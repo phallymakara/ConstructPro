@@ -11,9 +11,9 @@ import {
   Hammer,
   SlidersHorizontal,
   Pencil,
-  ChevronDown,
   FileText,
-  FileDown
+  FileDown,
+  MoreHorizontal
 } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useProjectsController } from '../../controllers/useProjectsController';
@@ -21,6 +21,8 @@ import { StatusBadge } from '../components/StatusBadge';
 import { Modal } from '../components/Modal';
 import { api } from '../../controllers/apiClient';
 import type { Project, ProjectStatus, ProjectFormData, ProjectItemFormData, Customer } from '../../models/types';
+import { exportProjectToPDF, exportProjectToWord } from '../../utils/exportTemplate';
+import { getProjectCalculatedProgress } from '../../utils/taskProgress';
 
 const STATUS_OPTIONS: ProjectStatus[] = [
   'Draft',
@@ -33,30 +35,6 @@ const STATUS_OPTIONS: ProjectStatus[] = [
   'Completed',
   'Cancelled'
 ];
-
-const getProjectProgress = (status: ProjectStatus): number => {
-  switch (status) {
-    case 'Draft': return 5;
-    case 'Quotation': return 15;
-    case 'Approved': return 25;
-    case 'Material Preparation': return 45;
-    case 'Production': return 65;
-    case 'Ready for Delivery': return 85;
-    case 'Installation': return 95;
-    case 'Completed': return 100;
-    case 'Cancelled': return 0;
-    default: return 0;
-  }
-};
-
-const formatShortId = (projectNumber?: string): string => {
-  if (!projectNumber) return '-';
-  const match = projectNumber.match(/^PRJ-\d{4,6}-(\d+)$/);
-  if (match) return `PRJ-${match[1]}`;
-  const parts = projectNumber.split('-');
-  if (parts.length >= 3 && parts[0] === 'PRJ') return `PRJ-${parts[parts.length - 1]}`;
-  return projectNumber;
-};
 
 const formatDateForInput = (dateVal?: string | null): string => {
   if (!dateVal) return '';
@@ -192,226 +170,6 @@ const checkProjectExportValidation = (proj: Project): ExportValidationResult => 
   };
 };
 
-const generateExportDocumentBody = (
-  proj: Project,
-  customerName: string,
-  personnel: ProjectPersonnelItem[],
-  materials: any[]
-): string => {
-  const shortId = formatShortId(proj.project_number);
-  const printDate = new Date().toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
-
-  return `
-    <div style="font-family: 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; line-height: 1.5; padding: 24px;">
-      <!-- Header -->
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0284c7; padding-bottom: 14px; margin-bottom: 20px;">
-        <div>
-          <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #0284c7; letter-spacing: -0.5px;">ConstructPro ERP</h1>
-          <div style="font-size: 13px; color: #64748b; margin-top: 2px;">Project Specification & Dispatch Report</div>
-        </div>
-        <div style="text-align: right; font-size: 12px; color: #64748b;">
-          <div><strong>Date:</strong> ${printDate}</div>
-          <div><strong>Ref:</strong> ${shortId}</div>
-        </div>
-      </div>
-
-      <!-- Project Overview -->
-      <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 13px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px;">
-        <tr>
-          <td style="padding: 8px 12px; font-weight: 600; color: #475569; width: 18%;">Project ID:</td>
-          <td style="padding: 8px 12px; font-weight: 700; color: #0f172a; width: 32%;">${shortId}</td>
-          <td style="padding: 8px 12px; font-weight: 600; color: #475569; width: 18%;">Project Name:</td>
-          <td style="padding: 8px 12px; font-weight: 700; color: #0f172a; width: 32%;">${proj.project_name || '-'}</td>
-        </tr>
-        <tr>
-          <td style="padding: 8px 12px; font-weight: 600; color: #475569;">Project Type:</td>
-          <td style="padding: 8px 12px; color: #0f172a;">${proj.project_type || 'Window & Door Installation'}</td>
-          <td style="padding: 8px 12px; font-weight: 600; color: #475569;">Status:</td>
-          <td style="padding: 8px 12px; color: #0f172a;"><strong>${proj.status}</strong></td>
-        </tr>
-        <tr>
-          <td style="padding: 8px 12px; font-weight: 600; color: #475569;">Customer:</td>
-          <td style="padding: 8px 12px; color: #0f172a;">${customerName}</td>
-          <td style="padding: 8px 12px; font-weight: 600; color: #475569;">Site Location:</td>
-          <td style="padding: 8px 12px; color: #0f172a;">${proj.location || '-'}</td>
-        </tr>
-        <tr>
-          <td style="padding: 8px 12px; font-weight: 600; color: #475569;">Start Date:</td>
-          <td style="padding: 8px 12px; color: #0f172a;">${proj.start_date ? new Date(proj.start_date).toLocaleDateString() : '-'}</td>
-          <td style="padding: 8px 12px; font-weight: 600; color: #475569;">Deadline Date:</td>
-          <td style="padding: 8px 12px; color: #0f172a;">${proj.deadline_date ? new Date(proj.deadline_date).toLocaleDateString() : '-'}</td>
-        </tr>
-      </table>
-
-      <!-- Section 1: Work & Personnel -->
-      <h2 style="font-size: 15px; font-weight: 700; color: #0f172a; margin-top: 24px; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
-        1. Assigned Work & Personnel
-      </h2>
-      <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 12px;">
-        <thead>
-          <tr style="background-color: #f1f5f9; text-align: left;">
-            <th style="padding: 8px 10px; border: 1px solid #cbd5e1; width: 5%;">#</th>
-            <th style="padding: 8px 10px; border: 1px solid #cbd5e1; width: 25%;">Name</th>
-            <th style="padding: 8px 10px; border: 1px solid #cbd5e1; width: 30%;">Role</th>
-            <th style="padding: 8px 10px; border: 1px solid #cbd5e1; width: 30%;">Scope</th>
-            <th style="padding: 8px 10px; border: 1px solid #cbd5e1; width: 10%;">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${personnel.map((p, idx) => `
-            <tr>
-              <td style="padding: 8px 10px; border: 1px solid #cbd5e1; text-align: center;">${idx + 1}</td>
-              <td style="padding: 8px 10px; border: 1px solid #cbd5e1; font-weight: 600;">${p.name}</td>
-              <td style="padding: 8px 10px; border: 1px solid #cbd5e1;">${p.role}</td>
-              <td style="padding: 8px 10px; border: 1px solid #cbd5e1; color: #475569;">${p.scope}</td>
-              <td style="padding: 8px 10px; border: 1px solid #cbd5e1; text-align: center; color: #047857; font-weight: 600;">Assigned</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-
-      <!-- Section 2: Project Materials -->
-      <h2 style="font-size: 15px; font-weight: 700; color: #0f172a; margin-top: 24px; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
-        2. Assigned Project Materials
-      </h2>
-      <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 12px;">
-        <thead>
-          <tr style="background-color: #f1f5f9; text-align: left;">
-            <th style="padding: 8px 10px; border: 1px solid #cbd5e1; width: 6%;">#</th>
-            <th style="padding: 8px 10px; border: 1px solid #cbd5e1; width: 54%;">Material Name</th>
-            <th style="padding: 8px 10px; border: 1px solid #cbd5e1; width: 22%;">Required Qty</th>
-            <th style="padding: 8px 10px; border: 1px solid #cbd5e1; width: 18%;">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${materials.map((m, idx) => `
-            <tr>
-              <td style="padding: 8px 10px; border: 1px solid #cbd5e1; text-align: center;">${idx + 1}</td>
-              <td style="padding: 8px 10px; border: 1px solid #cbd5e1; font-weight: 600;">${m.material_name || m.name || '-'}</td>
-              <td style="padding: 8px 10px; border: 1px solid #cbd5e1;">${m.required_qty ?? '-'}</td>
-              <td style="padding: 8px 10px; border: 1px solid #cbd5e1; text-align: center;">${m.status || 'Ready'}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-
-      <!-- Section 3: Sign-off & Verification -->
-      <div style="margin-top: 40px; display: flex; justify-content: space-between; gap: 20px; font-size: 12px;">
-        <div style="border-top: 1px solid #94a3b8; width: 45%; padding-top: 8px;">
-          <div><strong>Prepared & Approved By:</strong></div>
-          <div style="margin-top: 24px; color: #64748b;">Project Manager / Site Supervisor</div>
-        </div>
-        <div style="border-top: 1px solid #94a3b8; width: 45%; padding-top: 8px;">
-          <div><strong>Customer / Site Liaison Acceptance:</strong></div>
-          <div style="margin-top: 24px; color: #64748b;">Signature & Date</div>
-        </div>
-      </div>
-    </div>
-  `;
-};
-
-const exportProjectToPDF = (
-  proj: Project,
-  customerName: string,
-  personnel: ProjectPersonnelItem[],
-  materials: any[]
-) => {
-  const bodyContent = generateExportDocumentBody(proj, customerName, personnel, materials);
-  const printHtml = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <title>${proj.project_name || 'Project'} - Specification</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
-        <style>
-          @media print {
-            @page { size: A4 portrait; margin: 12mm; }
-            body { margin: 0; padding: 0; }
-          }
-          body {
-            font-family: 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background: #ffffff;
-            margin: 0;
-            padding: 0;
-          }
-        </style>
-      </head>
-      <body>
-        ${bodyContent}
-      </body>
-    </html>
-  `;
-
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = '0';
-  document.body.appendChild(iframe);
-
-  const doc = iframe.contentWindow?.document;
-  if (doc) {
-    doc.open();
-    doc.write(printHtml);
-    doc.close();
-    setTimeout(() => {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-      setTimeout(() => {
-        if (document.body.contains(iframe)) {
-          document.body.removeChild(iframe);
-        }
-      }, 2000);
-    }, 300);
-  }
-};
-
-const exportProjectToWord = (
-  proj: Project,
-  customerName: string,
-  personnel: ProjectPersonnelItem[],
-  materials: any[]
-) => {
-  const bodyContent = generateExportDocumentBody(proj, customerName, personnel, materials);
-  const wordHtml = `
-    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-      <head>
-        <meta charset="utf-8">
-        <title>${proj.project_name || 'Project'} - Export</title>
-        <style>
-          body { font-family: 'Kantumruy Pro', 'Calibri', 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #0f172a; }
-          table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
-          th { background-color: #f1f5f9; color: #0f172a; border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; font-size: 10pt; }
-          td { border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 10pt; }
-        </style>
-      </head>
-      <body>
-        ${bodyContent}
-      </body>
-    </html>
-  `;
-
-  const blob = new Blob(['\ufeff' + wordHtml], { type: 'application/msword;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  const shortNum = formatShortId(proj.project_number).replace(/[^a-zA-Z0-9_-]/g, '_');
-  const cleanName = (proj.project_name || 'Project').replace(/[^a-zA-Z0-9_-]/g, '_');
-  link.href = url;
-  link.download = `${shortNum}_${cleanName}.doc`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-};
 
 
 export const ProjectsView: React.FC = () => {
@@ -768,7 +526,7 @@ export const ProjectsView: React.FC = () => {
               </tr>
             ) : (
               projects.map(proj => {
-                const progress = getProjectProgress(proj.status);
+                const progress = getProjectCalculatedProgress(proj.id, proj.status);
                 const exportValidation = checkProjectExportValidation(proj);
                 const customerName = proj.customer?.name || customers.find(c => c.id === proj.customer_id)?.name || '-';
                 return (
@@ -805,15 +563,17 @@ export const ProjectsView: React.FC = () => {
                     <td style={{ textAlign: 'right' }}>
                       <div className="erp-dropdown-container">
                         <button
+                          type="button"
                           className="erp-btn erp-btn-secondary erp-btn-sm"
+                          style={{ padding: '4px 8px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                           onClick={(e) => {
                             e.stopPropagation();
                             setOpenMenuProjectId(openMenuProjectId === proj.id ? null : proj.id);
                           }}
+                          title="Actions"
+                          aria-label="Actions"
                         >
-                          <SlidersHorizontal size={12} />
-                          <span>Manage</span>
-                          <ChevronDown size={11} style={{ marginLeft: 2, opacity: 0.7 }} />
+                          <MoreHorizontal size={15} />
                         </button>
 
                         {openMenuProjectId === proj.id && (

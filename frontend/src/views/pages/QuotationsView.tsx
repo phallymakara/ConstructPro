@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Plus, Search, CheckCircle2 } from 'lucide-react';
+import { Plus, Search, CheckCircle2, FileDown } from 'lucide-react';
 import { useQuotationsController } from '../../controllers/useQuotationsController';
 import { StatusBadge } from '../components/StatusBadge';
 import { Modal } from '../components/Modal';
+import { exportQuotationToPDF } from '../../utils/exportTemplate';
 import type { QuotationFormData } from '../../models/types';
 
 export const QuotationsView: React.FC = () => {
@@ -170,21 +171,31 @@ export const QuotationsView: React.FC = () => {
                     <StatusBadge status={quote.status} />
                   </td>
                   <td>
-                    {quote.status !== 'Approved' ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <button
                         className="erp-btn erp-btn-secondary erp-btn-sm"
-                        onClick={() => convertToProject(quote.id)}
-                        disabled={actionLoading}
-                        title="Approve and convert into an active Project"
+                        onClick={() => exportQuotationToPDF(quote, quote.customer?.name || 'Customer')}
+                        title="Export Quotation as PDF"
                       >
-                        <CheckCircle2 size={12} color="#047857" />
-                        <span>Approve & Convert</span>
+                        <FileDown size={12} />
+                        <span>PDF</span>
                       </button>
-                    ) : (
-                      <span style={{ fontSize: '11px', color: 'var(--erp-text-muted)' }}>
-                        Converted to Project
-                      </span>
-                    )}
+                      {quote.status !== 'Approved' ? (
+                        <button
+                          className="erp-btn erp-btn-secondary erp-btn-sm"
+                          onClick={() => convertToProject(quote.id)}
+                          disabled={actionLoading}
+                          title="Approve and convert into an active Project"
+                        >
+                          <CheckCircle2 size={12} color="#047857" />
+                          <span>Convert</span>
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: '11px', color: 'var(--erp-text-muted)' }}>
+                          Converted
+                        </span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))

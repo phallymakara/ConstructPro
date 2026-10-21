@@ -53,7 +53,12 @@ The platform is designed with a decoupled client-server architecture:
 
 ```text
 ConstructPro/
-├── docker-compose.yml          # Container configuration for PostgreSQL
+├── docker-compose.yml          # Container configuration (PostgreSQL, backend, frontend)
+├── docker/
+│   ├── backend/
+│   │   └── Dockerfile.dev      # Development container for FastAPI backend
+│   └── frontend/
+│       └── Dockerfile.dev      # Development container for React frontend
 ├── backend/
 │   ├── app/
 │   │   ├── api/v1/             # REST endpoints (projects, materials, quotations, etc.)
@@ -63,12 +68,13 @@ ConstructPro/
 │   │   ├── services/           # Business logic layer
 │   │   └── main.py             # FastAPI entry point
 │   ├── pyproject.toml          # Python dependencies and packaging configuration
-│   ├── Dockerfile.dev          # Development container for backend
+│   ├── main.py                 # Backend launcher with auto-port conflict detection
 │   └── seed.py                 # Schema initialization utility
 ├── frontend/
 │   ├── src/
 │   │   ├── controllers/        # State management hooks and data fetching logic
 │   │   ├── models/             # TypeScript domain definitions and API client
+│   │   ├── utils/              # Export templates & PDF generation
 │   │   ├── views/
 │   │   │   ├── components/     # Reusable UI elements (Header, Sidebar, Modals)
 │   │   │   └── pages/          # Application views (Projects, Materials, etc.)
@@ -142,25 +148,25 @@ DATABASE_URL="postgresql://constructpro:constructpro_dev@localhost:5432/construc
 
 Start the FastAPI application:
 
-Using uv (from the backend directory):
+Using uv (recommended with auto port conflict detection):
 ```bash
-uv run uvicorn app.main:app --reload --port 8000
+uv run python main.py
 ```
 
 Or from the repository root:
 ```bash
-uv run --directory backend uvicorn app.main:app --reload --port 8000
+uv run --directory backend python main.py
 ```
 
-Or using an activated virtual environment:
+Or using uvicorn directly:
 ```bash
-uvicorn app.main:app --reload --port 8000
+uv run uvicorn app.main:app --reload --port 8001
 ```
 
 The interactive API documentation is available at:
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
-- Health check: `http://localhost:8000/health`
+- Swagger UI: `http://localhost:8001/docs`
+- ReDoc: `http://localhost:8001/redoc`
+- Health check: `http://localhost:8001/health`
 
 ### 3. Frontend Setup
 

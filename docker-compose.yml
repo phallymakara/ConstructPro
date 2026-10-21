@@ -17,5 +17,37 @@ services:
       timeout: 5s
       retries: 5
 
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/backend/Dockerfile.dev
+    container_name: constructpro_backend
+    restart: unless-stopped
+    environment:
+      - PORT=8001
+      - DATABASE_URL=postgresql://constructpro:constructpro_dev@db:5432/constructpro
+      - CORS_ORIGINS=["http://localhost:5173","http://localhost:5174","http://localhost:5175"]
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/frontend/Dockerfile.dev
+    container_name: constructpro_frontend
+    restart: unless-stopped
+    ports:
+      - "5174:5174"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
 volumes:
   postgres_data:

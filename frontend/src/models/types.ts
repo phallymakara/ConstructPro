@@ -352,3 +352,26 @@ export interface DelayedProjectReportItem {
   assigned_manager?: string;
 }
 
+export interface ProjectSubTask {
+  id: string;
+  title: string;
+  progress: number;
+  completed?: boolean;
+  start_date?: string;
+  est_end_date?: string;
+  description?: string;
+}
+
+export interface ProjectTask {
+  id: string;
+  name: string;
+  description?: string;
+  status: 'Todo' | 'In Progress' | 'Completed';
+  subtasks: ProjectSubTask[];
+  created_at?: string;
+  start_date?: string;
+  end_date?: string;
+  est_end_date?: string;
+}
+
+

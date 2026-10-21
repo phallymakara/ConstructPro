@@ -119,7 +119,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   line-height: 1.5;
-  font-size: 13px;
+  font-size: 15.5px;
   letter-spacing: -0.012em;
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
 }
@@ -177,7 +177,7 @@ body {
 }
 
 .erp-brand-title {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 600;
   color: #f8fafc;
   letter-spacing: 0.3px;
@@ -186,7 +186,7 @@ body {
 
 .erp-nav-section-label {
   padding: 16px 16px 6px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.8px;
@@ -211,7 +211,7 @@ body {
   border-radius: var(--erp-radius);
   color: var(--erp-sidebar-text);
   text-decoration: none;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   cursor: pointer;
   border: 1px solid transparent;
@@ -274,7 +274,7 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--erp-text-muted);
 }
 
@@ -296,7 +296,7 @@ body {
   padding: 4px 12px;
   border: 1px solid var(--erp-border);
   border-radius: var(--erp-radius-pill);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--erp-text-main);
   background-color: #ffffff;
   transition: background-color 0.2s ease, border-color 0.2s ease;
@@ -351,7 +351,7 @@ body {
 }
 
 .erp-action-bar-title {
-  font-size: 15px;
+  font-size: 16.5px;
   font-weight: 600;
   color: var(--erp-text-main);
 }
@@ -377,7 +377,7 @@ body {
 .erp-tab-group .erp-btn {
   height: 28px;
   padding: 0 12px;
-  font-size: 11.5px;
+  font-size: 13px;
   border-radius: 9px;
   border: none;
 }
@@ -391,7 +391,7 @@ body {
   height: 36px;
   padding: 0 16px;
   border-radius: var(--erp-radius-btn);
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   border: 1px solid transparent;
@@ -443,7 +443,7 @@ body {
 .erp-btn-sm {
   height: 30px;
   padding: 0 12px;
-  font-size: 11.5px;
+  font-size: 12.5px;
   border-radius: 9px;
 }
 
@@ -496,7 +496,7 @@ body {
   border: 1px solid var(--erp-border);
   border-radius: var(--erp-radius-input);
   padding: 0 14px;
-  font-size: 12.5px;
+  font-size: 14px;
   color: var(--erp-text-main);
   background-color: #ffffff;
   outline: none;
@@ -524,7 +524,7 @@ body {
   border: 1px solid var(--erp-border);
   border-radius: var(--erp-radius-input);
   padding: 0 32px 0 14px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--erp-text-main);
   background-color: #ffffff;
   outline: none;
@@ -573,21 +573,21 @@ textarea.erp-input {
   align-items: center;
   justify-content: space-between;
   color: var(--erp-text-muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .erp-metric-value {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 800;
   letter-spacing: -0.025em;
   color: var(--erp-text-main);
 }
 
 .erp-metric-footer {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--erp-text-muted);
   display: flex;
   align-items: center;
@@ -620,7 +620,7 @@ textarea.erp-input {
   background-color: var(--erp-bg);
   border-bottom: 1px solid var(--erp-border);
   padding: 11px 14px;
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -631,7 +631,7 @@ textarea.erp-input {
 .erp-table td {
   padding: 11px 14px;
   border-bottom: 1px solid var(--erp-border);
-  font-size: 13.5px;
+  font-size: 15px;
   color: var(--erp-text-main);
   vertical-align: middle;
 }
@@ -652,11 +652,12 @@ textarea.erp-input {
 .erp-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 10px;
+  gap: 3px;
+  padding: 1.5px 7px;
   border-radius: var(--erp-radius-pill);
   font-size: 11px;
   font-weight: 600;
+  line-height: 1.3;
   border: 1px solid transparent;
   white-space: nowrap;
   transition: background-color 0.18s ease;
@@ -734,7 +735,7 @@ textarea.erp-input {
 }
 
 .erp-progress-label {
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--erp-text-main);
   min-width: 34px;
@@ -769,7 +770,7 @@ textarea.erp-input {
 }
 
 .erp-drawer-title {
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 600;
   color: var(--erp-text-main);
 }
@@ -782,7 +783,7 @@ textarea.erp-input {
 
 .erp-drawer-tab {
   padding: 8px 14px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--erp-text-muted);
   border-bottom: 2px solid transparent;
@@ -815,7 +816,7 @@ textarea.erp-input {
   align-items: center;
   gap: 8px;
   padding: 12px 4px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--erp-text-muted);
   background: transparent;
@@ -845,7 +846,7 @@ textarea.erp-input {
   height: 18px;
   padding: 0 6px;
   border-radius: var(--erp-radius-pill);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   background-color: var(--erp-bg);
   color: var(--erp-text-muted);
@@ -956,12 +957,12 @@ textarea.erp-input {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 12px;
+  font-size: 13px;
   transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .erp-modal-title {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 600;
   color: var(--erp-text-main);
 }
@@ -992,7 +993,7 @@ textarea.erp-input {
 }
 
 .erp-form-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--erp-text-muted);
   text-transform: uppercase;
@@ -1000,7 +1001,7 @@ textarea.erp-input {
 }
 
 .erp-form-error {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--erp-text-error);
   margin-top: 2px;
 }
@@ -1062,7 +1063,7 @@ textarea.erp-input {
   gap: 8px;
   width: 100%;
   padding: 8px 12px;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 500;
   color: var(--erp-text-main);
   background: transparent;
@@ -1138,7 +1139,7 @@ textarea.erp-input {
 
 .project-summary-grid .erp-badge {
   font-weight: 500;
-  font-size: 10.5px;
+  font-size: 11.5px;
   padding: 1.5px 7px;
   line-height: 15px;
   border-radius: var(--erp-radius-pill);
@@ -1266,11 +1267,11 @@ textarea.erp-input {
 }
 
 .erp-kpi-label {
-  font-size: 11.5px;
+  font-size: 14.5px;
   font-weight: 600;
   color: var(--erp-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  text-transform: none;
+  letter-spacing: 0.1px;
 }
 
 .erp-kpi-icon {
@@ -1389,7 +1390,7 @@ textarea.erp-input {
 }
 
 .erp-chart-title {
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--erp-text-main);
   display: flex;

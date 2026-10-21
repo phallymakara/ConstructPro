@@ -47,16 +47,22 @@ pip install -r pyproject.toml
 
 ### 3. Run the Development Server
 
-Using uv:
+Using uv (recommended - includes automatic port conflict detection):
 
 ```bash
-uv run uvicorn app.main:app --reload --port 8000
+uv run python main.py
+```
+
+Or using uvicorn directly:
+
+```bash
+uv run uvicorn app.main:app --reload --port 8001
 ```
 
 Or using an activated virtual environment:
 
 ```bash
-uvicorn app.main:app --reload --port 8000
+python main.py
 ```
 
-Access API documentation at `http://localhost:8000/docs`.
+Access API documentation at `http://localhost:8001/docs`.
