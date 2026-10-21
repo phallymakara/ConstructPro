@@ -127,15 +127,20 @@ export interface ProjectWorkerLog {
 }
 
 export type ProjectStatus =
+  | 'Starting'
+  | 'In Progress'
+  | 'Overdue'
+  | 'Completed'
+  | 'Cancelled'
+  | 'Canceled'
   | 'Draft'
   | 'Quotation'
   | 'Approved'
   | 'Material Preparation'
   | 'Production'
   | 'Ready for Delivery'
-  | 'Installation'
-  | 'Completed'
-  | 'Cancelled';
+  | 'Installation';
+
 
 export interface Project {
   id: number;

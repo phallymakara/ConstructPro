@@ -187,7 +187,7 @@ class ProjectBase(BaseModel):
     project_name: str
     customer_id: Optional[int] = None
     location: Optional[str] = None
-    status: str = "Draft"
+    status: str = "Starting"
     assigned_manager: Optional[str] = None
     start_date: Optional[datetime] = None
     deadline_date: Optional[datetime] = None

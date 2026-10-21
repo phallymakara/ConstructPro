@@ -13,7 +13,9 @@ import {
   Pencil,
   FileText,
   FileDown,
-  MoreHorizontal
+  MoreHorizontal,
+  Ban,
+  RotateCcw
 } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useProjectsController } from '../../controllers/useProjectsController';
@@ -22,16 +24,12 @@ import { Modal } from '../components/Modal';
 import { api } from '../../controllers/apiClient';
 import type { Project, ProjectStatus, ProjectFormData, ProjectItemFormData, Customer } from '../../models/types';
 import { exportProjectToPDF, exportProjectToWord } from '../../utils/exportTemplate';
-import { getProjectCalculatedProgress } from '../../utils/taskProgress';
+import { getProjectCalculatedProgress, calculateDynamicProjectStatus } from '../../utils/taskProgress';
 
 const STATUS_OPTIONS: ProjectStatus[] = [
-  'Draft',
-  'Quotation',
-  'Approved',
-  'Material Preparation',
-  'Production',
-  'Ready for Delivery',
-  'Installation',
+  'Starting',
+  'In Progress',
+  'Overdue',
   'Completed',
   'Cancelled'
 ];
@@ -217,13 +215,11 @@ export const ProjectsView: React.FC = () => {
   const [editFormData, setEditFormData] = useState<{
     project_name: string;
     location: string;
-    status: ProjectStatus;
     start_date: string;
     deadline_date: string;
   }>({
     project_name: '',
     location: '',
-    status: 'Draft',
     start_date: '',
     deadline_date: '',
   });
@@ -250,7 +246,7 @@ export const ProjectsView: React.FC = () => {
   const [newProject, setNewProject] = useState<ProjectFormData>({
     project_name: '',
     location: '',
-    status: 'Draft',
+    status: 'Starting',
     assigned_manager: '',
     start_date: '',
     deadline_date: '',
@@ -287,7 +283,6 @@ export const ProjectsView: React.FC = () => {
     setEditFormData({
       project_name: proj.project_name || '',
       location: proj.location || '',
-      status: proj.status || 'Draft',
       start_date: formatDateForInput(proj.start_date),
       deadline_date: formatDateForInput(proj.deadline_date),
     });
@@ -318,7 +313,6 @@ export const ProjectsView: React.FC = () => {
     const success = await updateProject(projectToEdit.id, {
       project_name: editFormData.project_name.trim(),
       location: editFormData.location.trim(),
-      status: editFormData.status,
       start_date: editFormData.start_date || undefined,
       deadline_date: editFormData.deadline_date || undefined,
     });
@@ -388,7 +382,7 @@ export const ProjectsView: React.FC = () => {
       setNewProject({
         project_name: '',
         location: '',
-        status: 'Draft',
+        status: 'Starting',
         assigned_manager: '',
         start_date: '',
         deadline_date: '',
@@ -502,25 +496,25 @@ export const ProjectsView: React.FC = () => {
         <table className="erp-table">
           <thead>
             <tr>
-              <th>Project Name</th>
-              <th>Site Location</th>
-              <th>Progress</th>
-              <th>Start Date</th>
-              <th>End Date</th>
-              <th>Status</th>
-              <th style={{ textAlign: 'right' }}>Action</th>
+              <th style={{ fontSize: '13.5px' }}>Project Name</th>
+              <th style={{ fontSize: '13.5px' }}>Site Location</th>
+              <th style={{ fontSize: '13.5px' }}>Progress</th>
+              <th style={{ fontSize: '13.5px' }}>Start Date</th>
+              <th style={{ fontSize: '13.5px' }}>End Date</th>
+              <th style={{ fontSize: '13.5px' }}>Status</th>
+              <th style={{ textAlign: 'right', fontSize: '13.5px' }}>Action</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: '24px' }}>
+                <td colSpan={7} style={{ textAlign: 'center', padding: '24px', fontSize: '14.5px' }}>
                   Loading projects...
                 </td>
               </tr>
             ) : projects.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: '24px', color: 'var(--erp-text-muted)' }}>
+                <td colSpan={7} style={{ textAlign: 'center', padding: '24px', color: 'var(--erp-text-muted)', fontSize: '14.5px' }}>
                   No projects found. Click "New Project" to create one.
                 </td>
               </tr>
@@ -534,7 +528,7 @@ export const ProjectsView: React.FC = () => {
                     <td
                       style={{
                         fontWeight: 400,
-                        fontSize: '14.5px',
+                        fontSize: '15.5px',
                         color: 'var(--erp-text-main)',
                         cursor: 'pointer'
                       }}
@@ -543,22 +537,22 @@ export const ProjectsView: React.FC = () => {
                     >
                       {proj.project_name}
                     </td>
-                    <td style={{ fontSize: '13.5px' }}>{proj.location || '-'}</td>
+                    <td style={{ fontSize: '14.5px' }}>{proj.location || '-'}</td>
                     <td>
                       <div className="erp-progress-wrapper">
-                        <div className="erp-progress-track">
+                        <div className="erp-progress-track" style={{ height: '7px' }}>
                           <div
                             className={`erp-progress-bar ${progress === 100 ? 'completed' : ''}`}
                             style={{ width: `${progress}%` }}
                           />
                         </div>
-                        <span className="erp-progress-label">{progress}%</span>
+                        <span className="erp-progress-label" style={{ fontSize: '14px' }}>{progress}%</span>
                       </div>
                     </td>
-                    <td style={{ fontSize: '13.5px' }}>{proj.start_date ? new Date(proj.start_date).toLocaleDateString() : '-'}</td>
-                    <td style={{ fontSize: '13.5px' }}>{proj.deadline_date ? new Date(proj.deadline_date).toLocaleDateString() : '-'}</td>
+                    <td style={{ fontSize: '14.5px' }}>{proj.start_date ? new Date(proj.start_date).toLocaleDateString() : '-'}</td>
+                    <td style={{ fontSize: '14.5px' }}>{proj.deadline_date ? new Date(proj.deadline_date).toLocaleDateString() : '-'}</td>
                     <td>
-                      <StatusBadge status={proj.status} />
+                      <StatusBadge status={proj.status} style={{ fontSize: '12.5px', padding: '2.5px 8.5px' }} />
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <div className="erp-dropdown-container">
@@ -600,6 +594,32 @@ export const ProjectsView: React.FC = () => {
                               <SlidersHorizontal size={13} />
                               <span>Project Workspace</span>
                             </button>
+                            <div className="erp-dropdown-divider" />
+                            {proj.status === 'Cancelled' ? (
+                              <button
+                                type="button"
+                                className="erp-dropdown-item"
+                                onClick={async () => {
+                                  setOpenMenuProjectId(null);
+                                  await updateStatus(proj.id, 'Starting');
+                                }}
+                              >
+                                <RotateCcw size={13} />
+                                <span>Reactivate Project</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="erp-dropdown-item danger"
+                                onClick={async () => {
+                                  setOpenMenuProjectId(null);
+                                  await updateStatus(proj.id, 'Cancelled');
+                                }}
+                              >
+                                <Ban size={13} />
+                                <span>Cancel Project</span>
+                              </button>
+                            )}
                             <div className="erp-dropdown-divider" />
                             <button
                               type="button"
@@ -707,17 +727,6 @@ export const ProjectsView: React.FC = () => {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span className="erp-form-label" style={{ margin: 0 }}>Workflow:</span>
-                <select
-                  className="erp-select"
-                  style={{ height: '30px', padding: '0 24px 0 10px', fontSize: '11.5px' }}
-                  value={selectedProject.status}
-                  onChange={e => updateStatus(selectedProject.id, e.target.value as ProjectStatus)}
-                  disabled={actionLoading}
-                >
-                  {STATUS_OPTIONS.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
                 <StatusBadge status={selectedProject.status} />
               </div>
             </div>
@@ -1377,18 +1386,6 @@ export const ProjectsView: React.FC = () => {
               </div>
             </div>
 
-            <div className="erp-form-group">
-              <label className="erp-form-label">Workflow Status</label>
-              <select
-                className="erp-select"
-                value={editFormData.status}
-                onChange={e => setEditFormData({ ...editFormData, status: e.target.value as ProjectStatus })}
-              >
-                {STATUS_OPTIONS.map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
           </div>
 
           <div className="erp-modal-footer">

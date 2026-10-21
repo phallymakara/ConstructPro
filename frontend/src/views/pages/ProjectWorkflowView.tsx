@@ -21,7 +21,8 @@ import type { Project, ProjectTask, ProjectSubTask } from '../../models/types';
 import {
   calculateProjectTaskProgress,
   getProjectTasks,
-  saveProjectTasks
+  saveProjectTasks,
+  calculateDynamicProjectStatus
 } from '../../utils/taskProgress';
 import {
   generateProjectExportBody,
@@ -76,6 +77,21 @@ const calculateDurationDays = (start?: string | null, end?: string | null): stri
   }
 };
 
+const formatShortDocType = (type?: string, id?: number): string => {
+  if (id === 1) return 'Specification';
+  if (id === 2) return 'Schedule';
+  if (!type) return 'General';
+  const lower = type.toLowerCase();
+  if (lower.includes('schedule') || lower.includes('timeline')) return 'Schedule';
+  if (lower.includes('spec') || lower.includes('resource') || lower.includes('material')) return 'Specification';
+  if (lower.includes('contract') || lower.includes('agreement')) return 'Contract';
+  if (lower.includes('drawing') || lower.includes('blueprint')) return 'Drawing';
+  if (lower.includes('quotation') || lower.includes('proposal')) return 'Quotation';
+  if (lower.includes('photo') || lower.includes('survey')) return 'Photo';
+  if (lower.includes('report') || lower.includes('evaluation')) return 'Report';
+  if (lower.includes('general')) return 'General';
+  return type;
+};
 
 export const ProjectWorkflowView: React.FC = () => {
   const navigate = useNavigate();
@@ -156,7 +172,7 @@ export const ProjectWorkflowView: React.FC = () => {
   // Document tab state
   const [projectDocuments, setProjectDocuments] = useState<ProjectDoc[]>([]);
   const [isUploadDocModalOpen, setIsUploadDocModalOpen] = useState(false);
-  const [newDoc, setNewDoc] = useState({ name: '', document_type: 'General Document', file_name: '' });
+  const [newDoc, setNewDoc] = useState({ name: '', document_type: 'General', file_name: '' });
   const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
   const [viewingDoc, setViewingDoc] = useState<ProjectDoc | null>(null);
   const [isViewDocModalOpen, setIsViewDocModalOpen] = useState(false);
@@ -292,7 +308,7 @@ export const ProjectWorkflowView: React.FC = () => {
     const defaultDoc1: ProjectDoc = {
       id: 1,
       name: 'Project Specification & Resource Allocation',
-      document_type: 'Specification & Resources',
+      document_type: 'Specification',
       uploaded_by: 'Default',
       file_name: 'project_specification_report.pdf',
       uploaded_at: 'Default',
@@ -301,7 +317,7 @@ export const ProjectWorkflowView: React.FC = () => {
     const defaultDoc2: ProjectDoc = {
       id: 2,
       name: 'Project Schedule & Milestone Timeline',
-      document_type: 'Schedule & Timeline',
+      document_type: 'Schedule',
       uploaded_by: 'Default',
       file_name: 'project_schedule_timeline.pdf',
       uploaded_at: 'Default',
@@ -314,9 +330,9 @@ export const ProjectWorkflowView: React.FC = () => {
         const parsed: ProjectDoc[] = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const updated = parsed.map(d => {
-            if (d.id === 1) return { ...d, ...defaultDoc1 };
-            if (d.id === 2) return { ...d, ...defaultDoc2 };
-            return d;
+            if (d.id === 1) return { ...d, ...defaultDoc1, document_type: 'Specification' };
+            if (d.id === 2) return { ...d, ...defaultDoc2, document_type: 'Schedule' };
+            return { ...d, document_type: formatShortDocType(d.document_type, d.id) };
           });
           const has1 = updated.some(d => d.id === 1);
           const has2 = updated.some(d => d.id === 2);
@@ -415,10 +431,19 @@ export const ProjectWorkflowView: React.FC = () => {
     saveProjectTasks(project.id, normalized);
   }, [project?.id, project?.start_date, project?.deadline_date, project?.actual_start_date, project?.actual_end_date]);
 
-  const handleUpdateTasks = (newTasks: ProjectTask[]) => {
+  const handleUpdateTasks = async (newTasks: ProjectTask[]) => {
     setTasks(newTasks);
     if (project) {
       saveProjectTasks(project.id, newTasks);
+      const nextStatus = calculateDynamicProjectStatus(project, newTasks);
+      if (project.status !== nextStatus && project.status !== 'Cancelled') {
+        try {
+          await api.put(`/projects/${project.id}`, { status: nextStatus });
+          setProject(prev => prev ? { ...prev, status: nextStatus } : prev);
+        } catch {
+          // Keep local state responsive
+        }
+      }
     }
   };
 
@@ -885,7 +910,7 @@ export const ProjectWorkflowView: React.FC = () => {
     const docItem: ProjectDoc = {
       id: Date.now(),
       name: newDoc.name.trim(),
-      document_type: newDoc.document_type || 'General Document',
+      document_type: formatShortDocType(newDoc.document_type || 'General'),
       uploaded_by: 'Admin',
       file_name: newDoc.file_name || `${newDoc.name.trim().toLowerCase().replace(/\s+/g, '_')}.pdf`,
       uploaded_at: new Date().toLocaleDateString(),
@@ -897,7 +922,7 @@ export const ProjectWorkflowView: React.FC = () => {
         localStorage.setItem(`project_documents_${project.id}`, JSON.stringify(updated));
       } catch {}
     }
-    setNewDoc({ name: '', document_type: 'General Document', file_name: '' });
+    setNewDoc({ name: '', document_type: 'General', file_name: '' });
     setIsUploadDocModalOpen(false);
   };
 
@@ -1162,11 +1187,46 @@ export const ProjectWorkflowView: React.FC = () => {
                   <span style={{ color: 'var(--erp-text-muted)', width: '165px', flexShrink: 0 }}>Project Type:</span>
                   <span style={{ textAlign: 'left', fontWeight: 400 }}>{project.project_type || 'Window & Door Installation'}</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '14.5px' }}>
-                  <span style={{ color: 'var(--erp-text-muted)', width: '165px', flexShrink: 0 }}>Project Status:</span>
-                  <div style={{ textAlign: 'left' }}>
-                    <StatusBadge status={project.status} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', fontSize: '14.5px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <span style={{ color: 'var(--erp-text-muted)', width: '165px', flexShrink: 0 }}>Project Status:</span>
+                    <div style={{ textAlign: 'left' }}>
+                      <StatusBadge status={calculateDynamicProjectStatus(project, tasks)} />
+                    </div>
                   </div>
+                  {project.status === 'Cancelled' ? (
+                    <button
+                      type="button"
+                      className="erp-btn erp-btn-secondary erp-btn-sm"
+                      style={{ fontSize: '12px', padding: '2px 8px', height: '26px' }}
+                      onClick={async () => {
+                        try {
+                          await api.put(`/projects/${project.id}`, { status: 'Starting' });
+                          setProject(prev => prev ? { ...prev, status: 'Starting' } : prev);
+                        } catch (err: any) {
+                          setErrorMessage(err.message || 'Failed to reactivate project');
+                        }
+                      }}
+                    >
+                      Reactivate Project
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="erp-btn erp-btn-secondary erp-btn-sm"
+                      style={{ fontSize: '12px', padding: '2px 8px', height: '26px', color: 'var(--erp-text-error)' }}
+                      onClick={async () => {
+                        try {
+                          await api.put(`/projects/${project.id}`, { status: 'Cancelled' });
+                          setProject(prev => prev ? { ...prev, status: 'Cancelled' } : prev);
+                        } catch (err: any) {
+                          setErrorMessage(err.message || 'Failed to cancel project');
+                        }
+                      }}
+                    >
+                      Cancel Project
+                    </button>
+                  )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', fontSize: '14.5px' }}>
                   <span style={{ color: 'var(--erp-text-muted)', width: '165px', flexShrink: 0 }}>Project Site Location:</span>
@@ -1491,7 +1551,7 @@ export const ProjectWorkflowView: React.FC = () => {
                           <td style={{ fontWeight: 400, fontSize: '14.5px', color: 'var(--erp-text-main)' }}>
                             {person.role}
                           </td>
-                          <td style={{ color: 'var(--erp-text-muted)', fontSize: '13.5px' }}>
+                          <td style={{ color: 'var(--erp-text-muted)', fontSize: '14.5px' }}>
                             {person.scope}
                           </td>
                           <td style={{ textAlign: 'right' }}>
@@ -1521,7 +1581,7 @@ export const ProjectWorkflowView: React.FC = () => {
                                     }}
                                   >
                                     <Pencil size={13} />
-                                    <span>Edit Assignment</span>
+                                    <span>Edit</span>
                                   </button>
                                   <div className="erp-dropdown-divider" />
                                   <button
@@ -1534,7 +1594,7 @@ export const ProjectWorkflowView: React.FC = () => {
                                     disabled={actionLoading}
                                   >
                                     <Trash2 size={13} />
-                                    <span>Remove Personnel</span>
+                                    <span>Delete</span>
                                   </button>
                                 </div>
                               )}
@@ -1589,8 +1649,8 @@ export const ProjectWorkflowView: React.FC = () => {
                     <tbody>
                       {materialsList.map(req => (
                         <tr key={req.id}>
-                          <td style={{ fontWeight: 400, fontSize: '14px' }}>{req.material_name}</td>
-                          <td style={{ fontSize: '13.5px' }}>{req.required_qty}</td>
+                          <td style={{ fontWeight: 400, fontSize: '14.5px' }}>{req.material_name}</td>
+                          <td style={{ fontSize: '14px' }}>{req.required_qty}</td>
                           <td>
                             <StatusBadge status={req.status || 'Ready'} />
                           </td>
@@ -1621,7 +1681,7 @@ export const ProjectWorkflowView: React.FC = () => {
                                     }}
                                   >
                                     <Pencil size={13} />
-                                    <span>Edit Material</span>
+                                    <span>Edit</span>
                                   </button>
                                   <div className="erp-dropdown-divider" />
                                   <button
@@ -1634,7 +1694,7 @@ export const ProjectWorkflowView: React.FC = () => {
                                     disabled={actionLoading}
                                   >
                                     <Trash2 size={13} />
-                                    <span>Remove Material</span>
+                                    <span>Delete</span>
                                   </button>
                                 </div>
                               )}
@@ -1853,20 +1913,20 @@ export const ProjectWorkflowView: React.FC = () => {
                                 display: 'flex',
                                 alignItems: 'center',
                                 padding: '6px 8px',
-                                fontSize: '11px',
+                                fontSize: '13px',
                                 fontWeight: 600,
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.04em',
                                 color: 'var(--erp-text-muted)',
                                 borderBottom: '1px solid var(--erp-border)',
                                 gap: '12px',
-                                minWidth: '700px',
+                                minWidth: '720px',
                               }}
                             >
                               <div style={{ flex: 1, minWidth: '160px' }}>Subtask</div>
-                              <div style={{ width: '100px', textAlign: 'left' }}>Start Date</div>
-                              <div style={{ width: '100px', textAlign: 'left' }}>Est. End Date</div>
-                              <div style={{ flex: 1, minWidth: '140px', textAlign: 'left' }}>Description (Optional)</div>
+                              <div style={{ width: '115px', textAlign: 'left' }}>Start Date</div>
+                              <div style={{ width: '115px', textAlign: 'left' }}>Est. End Date</div>
+                              <div style={{ flex: 1, minWidth: '150px', textAlign: 'left' }}>Description (Optional)</div>
                               <div style={{ width: '130px', textAlign: 'right', paddingRight: '8px' }}>Progress</div>
                               <div style={{ width: '56px', textAlign: 'right' }}>Actions</div>
                             </div>
@@ -1884,18 +1944,18 @@ export const ProjectWorkflowView: React.FC = () => {
                                   style={{
                                     display: 'flex',
                                     alignItems: 'center',
-                                    padding: '7px 8px',
+                                    padding: '8px 8px',
                                     borderRadius: 'var(--erp-radius-sm, 6px)',
                                     gap: '12px',
                                     borderBottom: subtaskIdx < subtasks.length - 1 ? '1px solid var(--erp-border)' : 'none',
-                                    minWidth: '700px',
+                                    minWidth: '720px',
                                   }}
                                 >
                                   {/* Subtask Name */}
                                   <div style={{ flex: 1, minWidth: '160px' }}>
                                     <span
                                       style={{
-                                        fontSize: '14px',
+                                        fontSize: '14.5px',
                                         color: isComplete ? 'var(--erp-text-muted)' : 'var(--erp-text-main)',
                                         fontWeight: 400,
                                       }}
@@ -1908,12 +1968,12 @@ export const ProjectWorkflowView: React.FC = () => {
                                   </div>
 
                                   {/* Start Date Column */}
-                                  <div style={{ width: '100px', fontSize: '12.5px', color: 'var(--erp-text-muted)', whiteSpace: 'nowrap' }}>
+                                  <div style={{ width: '115px', fontSize: '14px', color: 'var(--erp-text-muted)', whiteSpace: 'nowrap' }}>
                                     {subtask.start_date ? new Date(subtask.start_date).toLocaleDateString() : '—'}
                                   </div>
 
                                   {/* Est. End Date Column */}
-                                  <div style={{ width: '100px', fontSize: '12.5px', color: 'var(--erp-text-muted)', whiteSpace: 'nowrap' }}>
+                                  <div style={{ width: '115px', fontSize: '14px', color: 'var(--erp-text-muted)', whiteSpace: 'nowrap' }}>
                                     {subtask.est_end_date ? new Date(subtask.est_end_date).toLocaleDateString() : '—'}
                                   </div>
 
@@ -1921,8 +1981,8 @@ export const ProjectWorkflowView: React.FC = () => {
                                   <div
                                     style={{
                                       flex: 1,
-                                      minWidth: '140px',
-                                      fontSize: '12.5px',
+                                      minWidth: '150px',
+                                      fontSize: '14px',
                                       color: 'var(--erp-text-muted)',
                                       overflow: 'hidden',
                                       textOverflow: 'ellipsis',
@@ -2079,7 +2139,7 @@ export const ProjectWorkflowView: React.FC = () => {
                 <tbody>
                   {projectDocuments.map(doc => {
                     const isDefault = doc.id === 1 || doc.id === 2 || doc.is_default;
-                    const docType = doc.document_type || (doc.id === 1 ? 'Specification & Resources' : doc.id === 2 ? 'Schedule & Timeline' : 'General Document');
+                    const docType = formatShortDocType(doc.document_type, doc.id);
                     const isSchedule = docType.toLowerCase().includes('schedule');
                     const isResource = docType.toLowerCase().includes('resource') || docType.toLowerCase().includes('specification') || docType.toLowerCase().includes('material');
 
@@ -2416,13 +2476,14 @@ export const ProjectWorkflowView: React.FC = () => {
                 value={newDoc.document_type}
                 onChange={e => setNewDoc({ ...newDoc, document_type: e.target.value })}
               >
-                <option value="General Document">General Document</option>
-                <option value="Contract">Contract / Agreement</option>
-                <option value="Drawing">Architectural Drawing / Blueprint</option>
-                <option value="Quotation">Quotation / Proposal</option>
-                <option value="Specification">Technical Specification</option>
-                <option value="Site Photo">Site Photo / Survey</option>
-                <option value="Report">Report / Evaluation</option>
+                <option value="General">General</option>
+                <option value="Contract">Contract</option>
+                <option value="Drawing">Drawing</option>
+                <option value="Quotation">Quotation</option>
+                <option value="Specification">Specification</option>
+                <option value="Photo">Photo</option>
+                <option value="Report">Report</option>
+                <option value="Schedule">Schedule</option>
               </select>
             </div>
 

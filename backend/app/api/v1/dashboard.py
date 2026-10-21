@@ -19,12 +19,14 @@ def get_dashboard_summary(db: Session = Depends(get_db)):
     total_projects = len(all_projects)
     active_projects = sum(
         1 for p in all_projects
-        if p.status not in [ProjectStatus.COMPLETED.value, ProjectStatus.CANCELLED.value, ProjectStatus.DRAFT.value]
+        if p.status not in [ProjectStatus.COMPLETED.value, ProjectStatus.CANCELLED.value, "Canceled"]
     )
     completed_projects = sum(1 for p in all_projects if p.status == ProjectStatus.COMPLETED.value)
     delayed_projects = sum(
         1 for p in all_projects
-        if p.deadline_date and p.deadline_date < now and p.status != ProjectStatus.COMPLETED.value
+        if p.status == ProjectStatus.OVERDUE.value or (
+            p.deadline_date and p.deadline_date < now and p.status not in [ProjectStatus.COMPLETED.value, ProjectStatus.CANCELLED.value, "Canceled"]
+        )
     )
 
     # Quotations

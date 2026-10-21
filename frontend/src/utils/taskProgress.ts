@@ -2,6 +2,10 @@ import type { ProjectStatus, ProjectTask } from '../models/types';
 
 export const getStatusFallbackProgress = (status: ProjectStatus | string): number => {
   switch (status) {
+    case 'Starting': return 0;
+    case 'In Progress':
+    case 'Inprogress': return 35;
+    case 'Overdue': return 50;
     case 'Draft': return 5;
     case 'Quotation': return 15;
     case 'Approved': return 25;
@@ -10,7 +14,8 @@ export const getStatusFallbackProgress = (status: ProjectStatus | string): numbe
     case 'Ready for Delivery': return 85;
     case 'Installation': return 95;
     case 'Completed': return 100;
-    case 'Cancelled': return 0;
+    case 'Cancelled':
+    case 'Canceled': return 0;
     default: return 0;
   }
 };
@@ -101,3 +106,61 @@ export const getProjectCalculatedProgress = (
   const tasks = getProjectTasks(projectId);
   return calculateProjectTaskProgress(tasks, fallbackStatus).percent;
 };
+
+/**
+ * Dynamic project status lifecycle:
+ * 1. Cancelled / Canceled: When user explicitly clicks cancel project.
+ * 2. Completed: When all tasks reach 100% completion (or 100% progress).
+ * 3. Overdue: When current date is past the estimated end date (deadline_date) and project is not completed.
+ * 4. In Progress: When user creates tasks or makes progress on any task.
+ * 5. Starting: Default initial status when project is created (no tasks yet, not overdue, not cancelled).
+ */
+export const calculateDynamicProjectStatus = (
+  project: {
+    status?: ProjectStatus | string;
+    deadline_date?: string | null;
+    start_date?: string | null;
+    id?: number | string;
+  },
+  tasks?: ProjectTask[]
+): ProjectStatus => {
+  const currentStatus = project?.status;
+  if (currentStatus === 'Cancelled' || currentStatus === 'Canceled') {
+    return 'Cancelled';
+  }
+
+  const projectTasks = tasks !== undefined
+    ? tasks
+    : (project?.id ? getProjectTasks(project.id) : []);
+
+  const metrics = calculateProjectTaskProgress(projectTasks, currentStatus);
+
+  // If completed (100% tasks done or progress === 100)
+  if (metrics.percent === 100 || (metrics.hasTasks && metrics.percent === 100)) {
+    return 'Completed';
+  }
+
+  // Check if overdue: deadline_date is in the past
+  if (project?.deadline_date) {
+    const rawStr = String(project.deadline_date).trim();
+    const match = rawStr.match(/^\d{4}-\d{2}-\d{2}/);
+    if (match) {
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      if (match[0] < todayStr) {
+        return 'Overdue';
+      }
+    }
+  }
+
+  // Check if tasks created or progress made
+  if (projectTasks && projectTasks.length > 0) {
+    return 'In Progress';
+  }
+  if (metrics.percent > 0) {
+    return 'In Progress';
+  }
+
+  return 'Starting';
+};
+

@@ -8,6 +8,8 @@ import type {
   Customer,
   Supplier
 } from '../models/types';
+import { calculateDynamicProjectStatus } from '../utils/taskProgress';
+
 
 export function useProjectsController() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -34,11 +36,15 @@ export function useProjectsController() {
         api.get<Customer[]>('/customers/'),
         api.get<Supplier[]>('/purchasing/suppliers'),
       ]);
-      setProjects(projData);
+      const mapped = projData.map(p => ({
+        ...p,
+        status: calculateDynamicProjectStatus(p),
+      }));
+      setProjects(mapped);
       setCustomers(custData);
       setSuppliers(supData);
       if (selectedProject) {
-        const updated = projData.find(p => p.id === selectedProject.id);
+        const updated = mapped.find(p => p.id === selectedProject.id);
         if (updated) setSelectedProject(updated);
       }
     } catch (err: any) {
@@ -60,9 +66,17 @@ export function useProjectsController() {
   const createProject = async (data: ProjectFormData) => {
     setActionLoading(true);
     try {
-      const newProj = await api.post<Project>('/projects/', data);
-      setProjects(prev => [newProj, ...prev]);
-      setSelectedProject(newProj);
+      const payload = {
+        ...data,
+        status: data.status || 'Starting',
+      };
+      const newProj = await api.post<Project>('/projects/', payload);
+      const dynamicNewProj = {
+        ...newProj,
+        status: calculateDynamicProjectStatus(newProj),
+      };
+      setProjects(prev => [dynamicNewProj, ...prev]);
+      setSelectedProject(dynamicNewProj);
       setIsCreateModalOpen(false);
       return true;
     } catch (err: any) {
@@ -76,11 +90,15 @@ export function useProjectsController() {
   const updateStatus = async (projectId: number, newStatus: ProjectStatus) => {
     setActionLoading(true);
     try {
-      const updated = await api.put<Project>(`/projects/${projectId}`, { status: newStatus });
-      setProjects(prev => prev.map(p => p.id === projectId ? updated : p));
-      if (selectedProject?.id === projectId) setSelectedProject(updated);
+      await api.put<Project>(`/projects/${projectId}`, { status: newStatus });
+      setProjects(prev => prev.map(p => p.id === projectId ? { ...p, status: newStatus } : p));
+      if (selectedProject?.id === projectId) {
+        setSelectedProject(prev => prev ? { ...prev, status: newStatus } : null);
+      }
+      return true;
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to update project status');
+      return false;
     } finally {
       setActionLoading(false);
     }
@@ -90,8 +108,12 @@ export function useProjectsController() {
     setActionLoading(true);
     try {
       const updated = await api.put<Project>(`/projects/${projectId}`, data);
-      setProjects(prev => prev.map(p => p.id === projectId ? updated : p));
-      if (selectedProject?.id === projectId) setSelectedProject(updated);
+      const dynUpdated = {
+        ...updated,
+        status: calculateDynamicProjectStatus(updated),
+      };
+      setProjects(prev => prev.map(p => p.id === projectId ? dynUpdated : p));
+      if (selectedProject?.id === projectId) setSelectedProject(dynUpdated);
       return true;
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to update project');

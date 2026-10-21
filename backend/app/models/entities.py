@@ -7,6 +7,11 @@ from sqlalchemy.orm import relationship
 from app.core.database import Base
 
 class ProjectStatus(str, enum.Enum):
+    STARTING = "Starting"
+    IN_PROGRESS = "In Progress"
+    OVERDUE = "Overdue"
+    COMPLETED = "Completed"
+    CANCELLED = "Cancelled"
     DRAFT = "Draft"
     QUOTATION = "Quotation"
     APPROVED = "Approved"
@@ -14,8 +19,7 @@ class ProjectStatus(str, enum.Enum):
     PRODUCTION = "Production"
     READY_FOR_DELIVERY = "Ready for Delivery"
     INSTALLATION = "Installation"
-    COMPLETED = "Completed"
-    CANCELLED = "Cancelled"
+
 
 class QuotationStatus(str, enum.Enum):
     DRAFT = "Draft"
@@ -88,7 +92,7 @@ class Project(Base):
     project_name = Column(String(255), nullable=False)
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
     location = Column(String(255), nullable=True)
-    status = Column(String(50), default=ProjectStatus.DRAFT.value)
+    status = Column(String(50), default=ProjectStatus.STARTING.value)
     assigned_manager = Column(String(100), nullable=True)
     start_date = Column(DateTime, nullable=True)
     deadline_date = Column(DateTime, nullable=True)
