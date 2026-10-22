@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
@@ -98,11 +98,25 @@ def _format_project(p: Project) -> dict:
         "payments": payments_data,
         "worker_logs": worker_logs_data,
         "preferred_contact_method": getattr(p, "preferred_contact_method", None) or (getattr(p.customer, 'preferred_contact_method', None) if p.customer else "Phone") or "Phone",
+        "source": getattr(p, "source", None) or "project",
     }
 
 @router.get("/", response_model=List[ProjectOut])
-def get_projects(db: Session = Depends(get_db)):
-    projects = db.query(Project).order_by(Project.created_at.desc()).all()
+def get_projects(source: Optional[str] = None, db: Session = Depends(get_db)):
+    query = db.query(Project)
+    if source == "sales":
+        query = query.filter(Project.source == "sales")
+    elif source == "project":
+        from sqlalchemy import or_
+        query = query.filter(
+            or_(
+                Project.source == "project",
+                (Project.source == "sales") & (Project.status.in_(["Closed Won", "Accepted", "Completed"]))
+            )
+        )
+    elif source:
+        query = query.filter(Project.source == source)
+    projects = query.order_by(Project.created_at.desc()).all()
     return [_format_project(p) for p in projects]
 
 @router.post("/", response_model=ProjectOut, status_code=status.HTTP_201_CREATED)
@@ -137,9 +151,19 @@ def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
         assigned_manager=payload.assigned_manager,
         start_date=payload.start_date,
         deadline_date=payload.deadline_date,
+        actual_start_date=payload.actual_start_date,
+        actual_end_date=payload.actual_end_date,
         contract_amount=payload.contract_amount,
         notes=payload.notes,
-        project_type=payload.project_type or "Window & Door Installation"
+        project_type=payload.project_type or "Window & Door Installation",
+        sales_person=payload.sales_person,
+        customer_representative=payload.customer_representative,
+        preferred_contact_method=payload.preferred_contact_method or "Phone",
+        priority=payload.priority or "Medium",
+        architect=payload.architect,
+        worker=payload.worker,
+        site_supervisor=payload.site_supervisor,
+        source=payload.source or "project"
     )
     db.add(project)
     db.flush()

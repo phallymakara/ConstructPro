@@ -211,6 +211,7 @@ class ProjectBase(BaseModel):
     labor_cost: Optional[float] = Field(0.0, ge=0)
     other_expenses: Optional[float] = Field(0.0, ge=0)
     preferred_contact_method: Optional[str] = "Phone"
+    source: Optional[str] = "project"
 
     @field_validator("start_date", "deadline_date", "actual_start_date", "actual_end_date", mode="before")
     @classmethod
@@ -250,6 +251,7 @@ class ProjectUpdate(BaseModel):
     labor_cost: Optional[float] = None
     other_expenses: Optional[float] = None
     preferred_contact_method: Optional[str] = None
+    source: Optional[str] = None
 
     @field_validator("start_date", "deadline_date", "actual_start_date", "actual_end_date", mode="before")
     @classmethod

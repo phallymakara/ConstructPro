@@ -32,19 +32,22 @@ export function useProjectsController() {
     setErrorMessage(null);
     try {
       const [projData, custData, supData] = await Promise.all([
-        api.get<Project[]>('/projects/'),
+        api.get<Project[]>('/projects/?source=project'),
         api.get<Customer[]>('/customers/'),
         api.get<Supplier[]>('/purchasing/suppliers'),
       ]);
-      const mapped = projData.map(p => ({
-        ...p,
-        status: calculateDynamicProjectStatus(p),
-      }));
-      setProjects(mapped);
+      // PM Projects Page receives projects created directly for operations or Closed Won from Sales
+      const pmProjects = projData
+        .filter(p => (p.source || 'project') !== 'sales' || p.status === 'Closed Won' || p.status === 'Accepted' || p.status === 'Completed')
+        .map(p => ({
+          ...p,
+          status: calculateDynamicProjectStatus(p),
+        }));
+      setProjects(pmProjects);
       setCustomers(custData);
       setSuppliers(supData);
       if (selectedProject) {
-        const updated = mapped.find(p => p.id === selectedProject.id);
+        const updated = pmProjects.find(p => p.id === selectedProject.id);
         if (updated) setSelectedProject(updated);
       }
     } catch (err: any) {
@@ -68,6 +71,7 @@ export function useProjectsController() {
     try {
       const payload = {
         ...data,
+        source: 'project',
         status: data.status || 'Starting',
       };
       const newProj = await api.post<Project>('/projects/', payload);

@@ -7,13 +7,17 @@ from sqlalchemy.orm import relationship
 from app.core.database import Base
 
 class ProjectStatus(str, enum.Enum):
+    INQUIRY = "Inquiry"
+    DISCUSSION = "Discussion"
+    QUOTATION = "Quotation"
+    NEGOTIATION = "Negotiation"
+    ACCEPTED = "Accepted"
     STARTING = "Starting"
     IN_PROGRESS = "In Progress"
     OVERDUE = "Overdue"
     COMPLETED = "Completed"
     CANCELLED = "Cancelled"
     DRAFT = "Draft"
-    QUOTATION = "Quotation"
     APPROVED = "Approved"
     MATERIAL_PREPARATION = "Material Preparation"
     PRODUCTION = "Production"
@@ -118,6 +122,7 @@ class Project(Base):
     labor_cost = Column(Float, default=0.0)
     other_expenses = Column(Float, default=0.0)
     preferred_contact_method = Column(String(50), default="Phone")
+    source = Column(String(50), default="project")
     created_at = Column(DateTime, default=datetime.utcnow)
 
     customer = relationship("Customer", back_populates="projects")

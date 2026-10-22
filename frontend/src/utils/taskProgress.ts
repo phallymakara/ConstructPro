@@ -2,13 +2,19 @@ import type { ProjectStatus, ProjectTask } from '../models/types';
 
 export const getStatusFallbackProgress = (status: ProjectStatus | string): number => {
   switch (status) {
+    case 'Inquiry': return 0;
+    case 'Discussion': return 5;
+    case 'Draft': return 5;
+    case 'Quotation': return 15;
+    case 'Negotiation': return 20;
+    case 'Accepted': return 25;
+    case 'Approved': return 25;
+    case 'Closed Won': return 100;
+    case 'Closed Lost': return 0;
     case 'Starting': return 0;
     case 'In Progress':
     case 'Inprogress': return 35;
     case 'Overdue': return 50;
-    case 'Draft': return 5;
-    case 'Quotation': return 15;
-    case 'Approved': return 25;
     case 'Material Preparation': return 45;
     case 'Production': return 65;
     case 'Ready for Delivery': return 85;
@@ -157,8 +163,28 @@ export const calculateDynamicProjectStatus = (
   if (projectTasks && projectTasks.length > 0) {
     return 'In Progress';
   }
-  if (metrics.percent > 0) {
+  if (metrics.hasTasks && metrics.percent > 0) {
     return 'In Progress';
+  }
+
+  // Preserve explicit sales or operational status if set
+  const PRESERVE_STATUSES = [
+    'Inquiry',
+    'Discussion',
+    'Quotation',
+    'Negotiation',
+    'Accepted',
+    'Closed Won',
+    'Closed Lost',
+    'Draft',
+    'Approved',
+    'Material Preparation',
+    'Production',
+    'Ready for Delivery',
+    'Installation',
+  ];
+  if (currentStatus && PRESERVE_STATUSES.includes(currentStatus)) {
+    return currentStatus as ProjectStatus;
   }
 
   return 'Starting';

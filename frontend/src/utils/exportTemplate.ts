@@ -1,5 +1,5 @@
 import { COMPANY_LOGO_BASE64 } from '../assets/logoBase64';
-import type { Project, Quotation } from '../models/types';
+import type { Project, Quotation, ProjectTask } from '../models/types';
 
 export interface ProjectPersonnelItem {
   name: string;
@@ -46,13 +46,9 @@ export const generateProjectExportBody = (
     month: 'short',
     day: 'numeric'
   });
-  const printTime = new Date().toLocaleTimeString('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
 
   return `
-    <div style="font-family: 'Kantumruy Pro', 'Siemreap', 'Khmer OS Siemreap', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; line-height: 1.5; padding: 24px; max-width: 820px; margin: 0 auto; box-sizing: border-box; background: #ffffff;">
+    <div style="font-family: 'Kantumruy Pro', 'Siemreap', 'Khmer OS Siemreap', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; line-height: 1.5; padding: 20px 24px; width: 100%; max-width: 210mm; margin: 0 auto; box-sizing: border-box; background: #ffffff;">
       
       <!-- Company Header with Logo -->
       <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #dc2626; padding-bottom: 14px; margin-bottom: 18px;">
@@ -221,9 +217,12 @@ export const exportProjectToPDF = (
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&family=Siemreap&display=swap" rel="stylesheet">
         <style>
+          @page {
+            size: 210mm 297mm;
+            margin: 10mm 12mm;
+          }
           @media print {
-            @page { size: A4 portrait; margin: 10mm 12mm; }
-            body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            body { margin: 0; padding: 0; width: 210mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           }
           body {
             font-family: 'Kantumruy Pro', 'Siemreap', 'Khmer OS Siemreap', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -283,15 +282,37 @@ export const exportProjectToWord = (
       <head>
         <meta charset="utf-8">
         <title>${proj.project_name || 'Project'} - Export</title>
+        <!--[if gte mso 9]>
+        <xml>
+          <w:WordDocument>
+            <w:View>Print</w:View>
+            <w:Zoom>100</w:Zoom>
+            <w:DoNotOptimizeForBrowser/>
+          </w:WordDocument>
+        </xml>
+        <![endif]-->
         <style>
-          body { font-family: 'Kantumruy Pro', 'Calibri', 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #0f172a; }
+          @page Section1 {
+            size: 210mm 297mm;
+            margin: 15mm 15mm 15mm 15mm;
+            mso-page-orientation: portrait;
+            mso-header-margin: 10mm;
+            mso-footer-margin: 10mm;
+            mso-paper-source: 0;
+          }
+          div.Section1 {
+            page: Section1;
+          }
+          body { font-family: 'Kantumruy Pro', 'Calibri', 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #0f172a; width: 210mm; margin: 0 auto; }
           table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
           th { border-bottom: 2px solid #cbd5e1; color: #1e293b; padding: 6px 8px; text-align: left; font-size: 10pt; font-weight: bold; }
           td { border-bottom: 1px solid #e2e8f0; padding: 6px 8px; font-size: 10pt; }
         </style>
       </head>
       <body>
-        ${bodyContent}
+        <div class="Section1">
+          ${bodyContent}
+        </div>
       </body>
     </html>
   `;
@@ -504,9 +525,12 @@ export const exportQuotationToPDF = (
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&family=Siemreap&display=swap" rel="stylesheet">
         <style>
+          @page {
+            size: 210mm 297mm;
+            margin: 10mm 12mm;
+          }
           @media print {
-            @page { size: A4 portrait; margin: 10mm 12mm; }
-            body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            body { margin: 0; padding: 0; width: 210mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           }
           body {
             font-family: 'Kantumruy Pro', 'Siemreap', 'Khmer OS Siemreap', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -569,13 +593,9 @@ export const generateScheduleExportBody = (
     month: 'short',
     day: 'numeric'
   });
-  const printTime = new Date().toLocaleTimeString('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
 
   return `
-    <div style="font-family: 'Kantumruy Pro', 'Siemreap', 'Khmer OS Siemreap', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; line-height: 1.5; padding: 24px; max-width: 820px; margin: 0 auto; box-sizing: border-box; background: #ffffff;">
+    <div style="font-family: 'Kantumruy Pro', 'Siemreap', 'Khmer OS Siemreap', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; line-height: 1.5; padding: 20px 24px; width: 100%; max-width: 210mm; margin: 0 auto; box-sizing: border-box; background: #ffffff;">
       
       <!-- Company Header with Logo -->
       <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #dc2626; padding-bottom: 14px; margin-bottom: 18px;">
@@ -718,9 +738,12 @@ export const exportScheduleToPDF = (
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&family=Siemreap&display=swap" rel="stylesheet">
         <style>
+          @page {
+            size: 210mm 297mm;
+            margin: 10mm 12mm;
+          }
           @media print {
-            @page { size: A4 portrait; margin: 10mm 12mm; }
-            body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            body { margin: 0; padding: 0; width: 210mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           }
           body {
             font-family: 'Kantumruy Pro', 'Siemreap', 'Khmer OS Siemreap', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -779,15 +802,37 @@ export const exportScheduleToWord = (
       <head>
         <meta charset="utf-8">
         <title>${proj.project_name || 'Project'} - Schedule & Timeline</title>
+        <!--[if gte mso 9]>
+        <xml>
+          <w:WordDocument>
+            <w:View>Print</w:View>
+            <w:Zoom>100</w:Zoom>
+            <w:DoNotOptimizeForBrowser/>
+          </w:WordDocument>
+        </xml>
+        <![endif]-->
         <style>
-          body { font-family: 'Kantumruy Pro', 'Calibri', 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #0f172a; }
+          @page Section1 {
+            size: 210mm 297mm;
+            margin: 15mm 15mm 15mm 15mm;
+            mso-page-orientation: portrait;
+            mso-header-margin: 10mm;
+            mso-footer-margin: 10mm;
+            mso-paper-source: 0;
+          }
+          div.Section1 {
+            page: Section1;
+          }
+          body { font-family: 'Kantumruy Pro', 'Calibri', 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #0f172a; width: 210mm; margin: 0 auto; }
           table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
           th { border-bottom: 2px solid #cbd5e1; color: #1e293b; padding: 6px 8px; text-align: left; font-size: 10pt; font-weight: bold; }
           td { border-bottom: 1px solid #e2e8f0; padding: 6px 8px; font-size: 10pt; }
         </style>
       </head>
       <body>
-        ${bodyContent}
+        <div class="Section1">
+          ${bodyContent}
+        </div>
       </body>
     </html>
   `;
@@ -805,4 +850,142 @@ export const exportScheduleToWord = (
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+};
+
+/**
+ * Open formatted document report in a full browser tab for normal PDF viewing & printing
+ */
+export const viewDocumentInNewTab = (title: string, bodyContent: string): void => {
+  const win = window.open('', '_blank');
+  if (!win) return;
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${title}</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&family=Siemreap&display=swap" rel="stylesheet">
+        <style>
+          * { box-sizing: border-box; }
+          body {
+            margin: 0;
+            padding: 0;
+            background-color: #f1f5f9;
+            font-family: 'Kantumruy Pro', 'Siemreap', 'Khmer OS Siemreap', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #0f172a;
+            -webkit-font-smoothing: antialiased;
+          }
+          .pdf-viewer-bar {
+            position: sticky;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background-color: #0f172a;
+            color: #ffffff;
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            border-bottom: 1px solid #1e293b;
+          }
+          .pdf-viewer-title {
+            font-size: 13.5px;
+            font-weight: 600;
+            color: #f8fafc;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+          .pdf-viewer-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+          }
+          .pdf-btn {
+            background-color: #0284c7;
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 14px;
+            font-size: 12.5px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: background-color 0.15s ease;
+          }
+          .pdf-btn:hover {
+            background-color: #0369a1;
+          }
+          .pdf-btn-secondary {
+            background-color: #334155;
+            color: #f8fafc;
+          }
+          .pdf-btn-secondary:hover {
+            background-color: #475569;
+          }
+          .pdf-page-container {
+            width: 210mm;
+            max-width: 100%;
+            min-height: 297mm;
+            margin: 24px auto;
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            box-sizing: border-box;
+          }
+          @media print {
+            .no-print { display: none !important; }
+            @page {
+              size: 210mm 297mm;
+              margin: 10mm 12mm;
+            }
+            body { background: #ffffff !important; padding: 0 !important; margin: 0 auto !important; width: 210mm !important; }
+            .pdf-page-container {
+              border: none !important;
+              box-shadow: none !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              width: 100% !important;
+              max-width: 100% !important;
+              min-height: auto !important;
+              border-radius: 0 !important;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="pdf-viewer-bar no-print">
+          <div class="pdf-viewer-title">
+            📄 ${title}
+          </div>
+          <div class="pdf-viewer-actions">
+            <button type="button" class="pdf-btn" onclick="window.print()">
+              🖨️ Print / Save as PDF
+            </button>
+            <button type="button" class="pdf-btn pdf-btn-secondary" onclick="window.close()">
+              ✕ Close
+            </button>
+          </div>
+        </div>
+
+        <div class="pdf-page-container">
+          ${bodyContent}
+        </div>
+      </body>
+    </html>
+  `;
+
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
 };

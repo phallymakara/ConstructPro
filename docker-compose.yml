@@ -31,6 +31,7 @@ services:
       - "8001:8001"
     volumes:
       - ./backend:/app
+      - /app/.venv
     depends_on:
       db:
         condition: service_healthy

@@ -4,7 +4,7 @@
 :root {
   --erp-font: 'Kantumruy Pro', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --erp-mono-font: 'JetBrains Mono', SFMono-Regular, Consolas, monospace;
-  
+
   /* Radii - Modern rounded corners */
   --erp-radius-xs: 6px;
   --erp-radius-sm: 8px;
@@ -42,7 +42,7 @@
   --erp-primary: #0284c7;
   --erp-primary-hover: #0369a1;
   --erp-primary-text: #ffffff;
-  
+
   /* Text */
   --erp-text-main: #0f172a;
   --erp-text-muted: #64748b;
@@ -73,6 +73,72 @@
   --badge-rose-bg: #fff1f2;
   --badge-rose-text: #be123c;
   --badge-rose-border: #fecdd3;
+
+  /* Typography Scale */
+  --erp-text-xs: 11.5px;
+  --erp-text-sm: 12.5px;
+  --erp-text-base: 13.5px;
+  --erp-text-md: 14px;
+  --erp-text-title: 15px;
+  --erp-text-header: 16px;
+  --erp-text-lg: 18px;
+  --erp-text-xl: 22px;
+}
+
+/* ==========================================================================
+   Smooth Hardware-Accelerated Animations Engine (Zero Shadows)
+   ========================================================================== */
+@keyframes erpFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes erpBackdropFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes erpModalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.985) translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes erpDrawerSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes erpDropdownFade {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 html {
@@ -82,13 +148,31 @@ html {
   text-rendering: optimizeLegibility;
 }
 
-* {
+*,
+*::before,
+*::after,
+input,
+button,
+select,
+textarea,
+optgroup,
+option {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  box-shadow: none !important; /* Strict user rule: NO SHADOWS */
+  font-family: var(--erp-font);
+  box-shadow: none !important;
+  /* Strict user rule: NO SHADOWS */
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
+}
+
+code,
+pre,
+kbd,
+samp,
+.erp-mono {
+  font-family: var(--erp-mono-font) !important;
 }
 
 /* Smooth custom rounded scrollbars */
@@ -104,7 +188,7 @@ html {
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: var(--erp-radius-pill);
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -119,13 +203,15 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   line-height: 1.5;
-  font-size: 15.5px;
-  letter-spacing: -0.012em;
+  font-size: 14px;
+  letter-spacing: -0.01em;
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
 }
 
 /* Tabular figures for tables and prices */
-.erp-table, .erp-metric-value, .erp-badge {
+.erp-table,
+.erp-metric-value,
+.erp-badge {
   font-variant-numeric: tabular-nums;
 }
 
@@ -177,16 +263,16 @@ body {
 }
 
 .erp-brand-title {
-  font-size: 15.5px;
+  font-size: 15px;
   font-weight: 600;
   color: #f8fafc;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
   white-space: nowrap;
 }
 
 .erp-nav-section-label {
   padding: 16px 16px 6px;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.8px;
@@ -211,17 +297,23 @@ body {
   border-radius: var(--erp-radius);
   color: var(--erp-sidebar-text);
   text-decoration: none;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   border: 1px solid transparent;
-  transition: background 0.18s ease, color 0.18s ease, transform 0.15s ease;
+  transition: background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.14s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .erp-nav-item:hover {
   background-color: var(--erp-sidebar-surface);
   color: var(--erp-sidebar-text-hover);
   transform: translateX(2px);
+}
+
+.erp-nav-item:active {
+  transform: scale(0.985);
 }
 
 .erp-nav-item.active {
@@ -235,7 +327,7 @@ body {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-  transition: transform 0.2s ease;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .erp-nav-item:hover .erp-nav-item-icon {
@@ -274,7 +366,7 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 14px;
+  font-size: 13.5px;
   color: var(--erp-text-muted);
 }
 
@@ -334,6 +426,7 @@ body {
   flex-direction: column;
   gap: 10px;
   min-height: 0;
+  animation: erpFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* Action Bar */
@@ -347,13 +440,14 @@ body {
   border: 1px solid var(--erp-border);
   padding: 10px 16px;
   border-radius: var(--erp-radius-card);
-  transition: border-color 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .erp-action-bar-title {
-  font-size: 16.5px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--erp-text-main);
+  letter-spacing: -0.01em;
 }
 
 .erp-action-bar-tools {
@@ -377,7 +471,7 @@ body {
 .erp-tab-group .erp-btn {
   height: 28px;
   padding: 0 12px;
-  font-size: 13px;
+  font-size: 12.5px;
   border-radius: 9px;
   border: none;
 }
@@ -391,22 +485,22 @@ body {
   height: 36px;
   padding: 0 16px;
   border-radius: var(--erp-radius-btn);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
   border: 1px solid transparent;
   outline: none;
-  transition: background-color 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-              color 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.14s cubic-bezier(0.16, 1, 0.3, 1),
-              opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.12s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
   font-family: inherit;
 }
 
 .erp-btn:active {
-  transform: scale(0.972);
+  transform: scale(0.976);
 }
 
 .erp-btn-primary {
@@ -443,7 +537,8 @@ body {
 .erp-btn-sm {
   height: 30px;
   padding: 0 12px;
-  font-size: 12.5px;
+  font-size: 12px;
+  font-weight: 600;
   border-radius: 9px;
 }
 
@@ -460,14 +555,19 @@ body {
   color: var(--erp-text-muted);
   cursor: pointer;
   transition: background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
-              color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.12s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .erp-btn-icon:hover {
   background-color: var(--erp-surface-hover);
   color: var(--erp-text-main);
   border-color: var(--erp-border);
+}
+
+.erp-btn-icon:active {
+  transform: scale(0.95);
 }
 
 /* Search and Input Fields - Modern Rounded with Smooth Transitions */
@@ -484,7 +584,7 @@ body {
   height: 15px;
   color: var(--erp-text-light);
   pointer-events: none;
-  transition: color 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: color 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .erp-input-group:focus-within .erp-input-icon {
@@ -496,14 +596,14 @@ body {
   border: 1px solid var(--erp-border);
   border-radius: var(--erp-radius-input);
   padding: 0 14px;
-  font-size: 14px;
+  font-size: 13.5px;
   color: var(--erp-text-main);
   background-color: #ffffff;
   outline: none;
   font-family: inherit;
-  transition: border-color 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-              background-color 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-              color 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .erp-input:focus {
@@ -524,14 +624,15 @@ body {
   border: 1px solid var(--erp-border);
   border-radius: var(--erp-radius-input);
   padding: 0 32px 0 14px;
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--erp-text-main);
   background-color: #ffffff;
   outline: none;
   font-family: inherit;
   cursor: pointer;
-  transition: border-color 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-              background-color 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .erp-select:focus {
@@ -543,6 +644,7 @@ textarea.erp-input {
   min-height: 72px;
   border-radius: var(--erp-radius-input);
   padding: 10px 14px;
+  font-size: 13.5px;
   resize: vertical;
 }
 
@@ -619,9 +721,9 @@ textarea.erp-input {
   z-index: 2;
   background-color: var(--erp-bg);
   border-bottom: 1px solid var(--erp-border);
-  padding: 11px 14px;
-  font-size: 12.5px;
-  font-weight: 700;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--erp-text-muted);
@@ -629,15 +731,15 @@ textarea.erp-input {
 }
 
 .erp-table td {
-  padding: 11px 14px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--erp-border);
-  font-size: 15px;
+  font-size: 13.5px;
   color: var(--erp-text-main);
   vertical-align: middle;
 }
 
 .erp-table tbody tr {
-  transition: background-color 0.12s ease;
+  transition: background-color 0.14s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .erp-table tbody tr:hover {
@@ -655,12 +757,14 @@ textarea.erp-input {
   gap: 3px;
   padding: 1.5px 7px;
   border-radius: var(--erp-radius-pill);
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.35;
   border: 1px solid transparent;
   white-space: nowrap;
-  transition: background-color 0.18s ease;
+  transition: background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .erp-badge-draft {
@@ -758,7 +862,8 @@ textarea.erp-input {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: border-color 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: erpDrawerSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .erp-drawer-header {
@@ -770,7 +875,7 @@ textarea.erp-input {
 }
 
 .erp-drawer-title {
-  font-size: 14.5px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--erp-text-main);
 }
@@ -792,7 +897,9 @@ textarea.erp-input {
   border-top: none;
   border-left: none;
   border-right: none;
-  transition: color 0.15s ease, border-bottom-color 0.15s ease, background-color 0.15s ease;
+  transition: color 0.16s cubic-bezier(0.16, 1, 0.3, 1),
+    border-bottom-color 0.16s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.16s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .erp-drawer-tab.active {
@@ -816,7 +923,7 @@ textarea.erp-input {
   align-items: center;
   gap: 8px;
   padding: 12px 4px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--erp-text-muted);
   background: transparent;
@@ -824,7 +931,8 @@ textarea.erp-input {
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
   cursor: pointer;
-  transition: color 0.18s ease, border-color 0.18s ease;
+  transition: color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    border-bottom-color 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
 }
 
@@ -846,12 +954,14 @@ textarea.erp-input {
   height: 18px;
   padding: 0 6px;
   border-radius: var(--erp-radius-pill);
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 11.5px;
+  font-weight: 600;
   background-color: var(--erp-bg);
   color: var(--erp-text-muted);
   border: 1px solid var(--erp-border);
-  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+  transition: background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .erp-underline-tab.active .erp-underline-tab-count {
@@ -869,18 +979,7 @@ textarea.erp-input {
   overflow-y: auto;
 }
 
-/* Modals with smooth entrance animation and rounded 14px corners */
-@keyframes erpModalFadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.975);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
+/* Modals with smooth entrance animation and rounded corners */
 .erp-modal-overlay {
   position: fixed;
   top: 0;
@@ -893,7 +992,7 @@ textarea.erp-input {
   justify-content: center;
   z-index: 1000;
   backdrop-filter: blur(2px);
-  transition: opacity 0.2s ease;
+  animation: erpBackdropFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .erp-modal {
@@ -906,7 +1005,7 @@ textarea.erp-input {
   flex-direction: column;
   max-height: 90vh;
   overflow: hidden;
-  animation: erpModalFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: erpModalFadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .erp-modal-header {
@@ -997,11 +1096,20 @@ textarea.erp-input {
   font-weight: 600;
   color: var(--erp-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.4px;
+}
+
+.erp-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--erp-text-main);
+  margin-bottom: 6px;
 }
 
 .erp-form-error {
   font-size: 12px;
+  font-weight: 500;
   color: var(--erp-text-error);
   margin-top: 2px;
 }
@@ -1043,18 +1151,8 @@ textarea.erp-input {
   gap: 2px;
   z-index: 100;
   box-shadow: none !important;
-  animation: erpDropdownFade 0.14s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes erpDropdownFade {
-  from {
-    opacity: 0;
-    transform: translateY(-4px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  transform-origin: top right;
+  animation: erpDropdownFade 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .erp-dropdown-item {
@@ -1062,8 +1160,8 @@ textarea.erp-input {
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 8px 12px;
-  font-size: 13.5px;
+  padding: 7px 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--erp-text-main);
   background: transparent;
@@ -1071,7 +1169,8 @@ textarea.erp-input {
   border-radius: var(--erp-radius-sm);
   cursor: pointer;
   text-align: left;
-  transition: background-color 0.16s ease, color 0.16s ease;
+  transition: background-color 0.16s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.16s cubic-bezier(0.16, 1, 0.3, 1);
   font-family: inherit;
   white-space: nowrap;
 }
@@ -1113,19 +1212,24 @@ textarea.erp-input {
   .erp-sidebar {
     width: 60px;
   }
+
   .erp-brand-title,
   .erp-nav-section-label,
   .erp-nav-text {
-    display: none !important; /* On mobile, hide product name, show only logo */
+    display: none !important;
+    /* On mobile, hide product name, show only logo */
   }
+
   .erp-brand-header {
     justify-content: center;
     padding: 0;
   }
+
   .erp-nav-item {
     justify-content: center;
     padding: 10px 0;
   }
+
   .erp-drawer-container {
     grid-template-columns: 1fr;
   }
@@ -1186,7 +1290,8 @@ textarea.erp-input {
   .project-summary-grid {
     grid-template-columns: 1fr;
   }
-  .project-summary-grid > div {
+
+  .project-summary-grid>div {
     grid-row: auto !important;
     grid-column: auto !important;
   }
@@ -1201,6 +1306,7 @@ textarea.erp-input {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  animation: erpFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .erp-analytics-header {
@@ -1227,19 +1333,18 @@ textarea.erp-input {
 
 .erp-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 960px) {
   .erp-kpi-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 600px) {
-  .erp-kpi-grid {
-    grid-template-columns: 1fr;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(180px, 1fr);
+    grid-template-columns: none;
+    overflow-x: auto;
+    padding-bottom: 4px;
   }
 }
 
@@ -1247,12 +1352,14 @@ textarea.erp-input {
   background-color: var(--erp-surface);
   border: 1px solid var(--erp-border);
   border-radius: var(--erp-radius-card);
-  padding: 14px 16px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: 10px;
-  transition: border-color 0.2s ease;
+  min-width: 0;
+  transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: none !important;
 }
 
@@ -1264,19 +1371,23 @@ textarea.erp-input {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
 }
 
 .erp-kpi-label {
-  font-size: 14.5px;
+  font-size: 16px;
   font-weight: 600;
-  color: var(--erp-text-muted);
+  color: var(--erp-text-main);
   text-transform: none;
   letter-spacing: 0.1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .erp-kpi-icon {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: var(--erp-radius-sm);
   display: flex;
   align-items: center;
@@ -1284,6 +1395,7 @@ textarea.erp-input {
   background-color: #f8fafc;
   border: 1px solid var(--erp-border);
   color: var(--erp-text-main);
+  flex-shrink: 0;
 }
 
 .erp-kpi-body {
@@ -1303,8 +1415,8 @@ textarea.erp-input {
 
 .erp-kpi-sparkline {
   flex-shrink: 0;
-  width: 72px;
-  height: 28px;
+  width: 58px;
+  height: 26px;
 }
 
 .erp-kpi-footer {
@@ -1475,11 +1587,26 @@ textarea.erp-input {
 
 @media (prefers-reduced-motion: reduce) {
   *,
+  *::before,
+  *::after,
+  .erp-content,
+  .erp-dashboard-scroll,
+  .erp-tab-panel,
+  .erp-tab-content,
   .erp-modal,
+  .erp-modal-overlay,
+  .erp-drawer,
+  .erp-dropdown-menu,
   .erp-btn,
-  .erp-nav-item {
-    animation-duration: 0.01ms !important;
+  .erp-btn-icon,
+  .erp-nav-item,
+  .erp-underline-tab,
+  .erp-kpi-card,
+  .erp-metric-card,
+  .erp-chart-card,
+  .erp-table tbody tr {
+    animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    transition-duration: 0.001ms !important;
   }
 }

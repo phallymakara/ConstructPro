@@ -14,6 +14,22 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, style, classNa
     case 'Draft':
       badgeClass = 'erp-badge-draft';
       break;
+    case 'Inquiry':
+      badgeClass = 'erp-badge-blue';
+      break;
+    case 'Discussion':
+      badgeClass = 'erp-badge-purple';
+      break;
+    case 'Negotiation':
+      badgeClass = 'erp-badge-amber';
+      break;
+    case 'Accepted':
+    case 'Approved':
+    case 'Closed Won':
+    case 'Completed':
+    case 'Reserved':
+      badgeClass = 'erp-badge-emerald';
+      break;
     case 'Starting':
       badgeClass = 'erp-badge-blue';
       break;
@@ -28,11 +44,6 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, style, classNa
     case 'Sent':
       badgeClass = 'erp-badge-quotation';
       break;
-    case 'Approved':
-    case 'Completed':
-    case 'Reserved':
-      badgeClass = 'erp-badge-emerald';
-      break;
     case 'Material Preparation':
     case 'Issued':
       badgeClass = 'erp-badge-purple';
@@ -45,6 +56,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, style, classNa
     case 'Cancelled':
     case 'Canceled':
     case 'Rejected':
+    case 'Closed Lost':
     case 'Shortage':
       badgeClass = 'erp-badge-rose';
       break;

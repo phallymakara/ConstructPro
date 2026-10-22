@@ -6,7 +6,8 @@ import {
   Package,
   ShoppingCart,
   BarChart3,
-  Hammer
+  Hammer,
+  Briefcase
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -16,6 +17,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ currentPath }) => {
   const navItems = [
     { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="erp-nav-item-icon" /> },
+    { to: '/sale', label: 'Sales', icon: <Briefcase className="erp-nav-item-icon" /> },
     { to: '/projects', label: 'Projects', icon: <FolderKanban className="erp-nav-item-icon" /> },
     { to: '/inventory', label: 'Inventory', icon: <Package className="erp-nav-item-icon" /> },
     { to: '/purchasing', label: 'Purchasing', icon: <ShoppingCart className="erp-nav-item-icon" /> },

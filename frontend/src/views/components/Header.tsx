@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, ChevronRight } from 'lucide-react';
+import { User, ChevronRight, Hammer } from 'lucide-react';
 
 import { Link } from '@tanstack/react-router';
 
@@ -14,6 +14,7 @@ const isProjectWorkflowPath = (path: string): boolean => {
 };
 
 const getBreadcrumbTitle = (path: string): string => {
+  if (path.startsWith('/sale')) return 'Sales & Project Intake';
   if (path.startsWith('/projects')) return 'Projects Management';
   if (path.startsWith('/inventory') || path.startsWith('/materials')) return 'Inventory Control';
   if (path.startsWith('/purchasing')) return 'Suppliers & Purchasing';
@@ -29,7 +30,33 @@ export const Header: React.FC<HeaderProps> = ({ currentPath }) => {
     <header className="erp-header">
       <div className="erp-header-left">
         <div className="erp-breadcrumb">
-          <span>ConstructPro</span>
+          <Link
+            to="/dashboard"
+            style={{
+              textDecoration: 'none',
+              color: 'inherit',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <span
+              style={{
+                width: '20px',
+                height: '20px',
+                backgroundColor: 'var(--erp-primary)',
+                color: '#ffffff',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '5px',
+                flexShrink: 0,
+              }}
+            >
+              <Hammer size={12} />
+            </span>
+            <span style={{ fontWeight: 600 }}>ConstructPro</span>
+          </Link>
           <ChevronRight size={14} />
           {isWorkflow ? (
             <>

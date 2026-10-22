@@ -15,7 +15,9 @@ import {
   FileDown,
   MoreHorizontal,
   Ban,
-  RotateCcw
+  RotateCcw,
+  LayoutGrid,
+  List
 } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useProjectsController } from '../../controllers/useProjectsController';
@@ -24,9 +26,10 @@ import { Modal } from '../components/Modal';
 import { api } from '../../controllers/apiClient';
 import type { Project, ProjectStatus, ProjectFormData, ProjectItemFormData, Customer } from '../../models/types';
 import { exportProjectToPDF, exportProjectToWord } from '../../utils/exportTemplate';
-import { getProjectCalculatedProgress, calculateDynamicProjectStatus } from '../../utils/taskProgress';
+import { getProjectCalculatedProgress } from '../../utils/taskProgress';
 
 const STATUS_OPTIONS: ProjectStatus[] = [
+  'Accepted',
   'Starting',
   'In Progress',
   'Overdue',
@@ -208,6 +211,9 @@ export const ProjectsView: React.FC = () => {
 
   // Manage Dropdown Menu State
   const [openMenuProjectId, setOpenMenuProjectId] = useState<number | null>(null);
+
+  // View Mode: card (default) vs table
+  const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
 
   // Edit Project Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
@@ -473,16 +479,30 @@ export const ProjectsView: React.FC = () => {
           </select>
         </div>
 
-        <button
-          className="erp-btn erp-btn-primary"
-          onClick={() => {
-            setFormErrors({});
-            setIsCreateModalOpen(true);
-          }}
-        >
-          <Plus size={14} />
-          <span>New Project</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'inline-flex', border: '1px solid var(--erp-border)', borderRadius: 'var(--erp-radius-sm)', overflow: 'hidden' }}>
+            <button
+              type="button"
+              className={`erp-btn ${viewMode === 'card' ? 'erp-btn-primary' : 'erp-btn-secondary'}`}
+              style={{ height: '32px', padding: '0 10px', borderRadius: 0, border: 'none', gap: '5px', fontSize: '12px' }}
+              onClick={() => setViewMode('card')}
+              title="Card View"
+            >
+              <LayoutGrid size={14} />
+              <span>Cards</span>
+            </button>
+            <button
+              type="button"
+              className={`erp-btn ${viewMode === 'table' ? 'erp-btn-primary' : 'erp-btn-secondary'}`}
+              style={{ height: '32px', padding: '0 10px', borderRadius: 0, border: 'none', borderLeft: '1px solid var(--erp-border)', gap: '5px', fontSize: '12px' }}
+              onClick={() => setViewMode('table')}
+              title="Table View"
+            >
+              <List size={14} />
+              <span>Table</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {errorMessage && (
@@ -491,205 +511,449 @@ export const ProjectsView: React.FC = () => {
         </div>
       )}
 
-      {/* Full-Width Project Table */}
-      <div className="erp-table-container">
-        <table className="erp-table">
-          <thead>
-            <tr>
-              <th style={{ fontSize: '13.5px' }}>Project Name</th>
-              <th style={{ fontSize: '13.5px' }}>Site Location</th>
-              <th style={{ fontSize: '13.5px' }}>Progress</th>
-              <th style={{ fontSize: '13.5px' }}>Start Date</th>
-              <th style={{ fontSize: '13.5px' }}>End Date</th>
-              <th style={{ fontSize: '13.5px' }}>Status</th>
-              <th style={{ textAlign: 'right', fontSize: '13.5px' }}>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: '24px', fontSize: '14.5px' }}>
-                  Loading projects...
-                </td>
-              </tr>
-            ) : projects.length === 0 ? (
-              <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: '24px', color: 'var(--erp-text-muted)', fontSize: '14.5px' }}>
-                  No projects found. Click "New Project" to create one.
-                </td>
-              </tr>
-            ) : (
-              projects.map(proj => {
-                const progress = getProjectCalculatedProgress(proj.id, proj.status);
-                const exportValidation = checkProjectExportValidation(proj);
-                const customerName = proj.customer?.name || customers.find(c => c.id === proj.customer_id)?.name || '-';
-                return (
-                  <tr key={proj.id}>
-                    <td
-                      style={{
-                        fontWeight: 400,
-                        fontSize: '15.5px',
-                        color: 'var(--erp-text-main)',
-                        cursor: 'pointer'
-                      }}
-                      title={`Open Workflow & BOM for ${proj.project_name}`}
-                      onClick={() => navigate({ to: `/projects/${proj.id}` })}
-                    >
-                      {proj.project_name}
-                    </td>
-                    <td style={{ fontSize: '14.5px' }}>{proj.location || '-'}</td>
-                    <td>
-                      <div className="erp-progress-wrapper">
-                        <div className="erp-progress-track" style={{ height: '7px' }}>
-                          <div
-                            className={`erp-progress-bar ${progress === 100 ? 'completed' : ''}`}
-                            style={{ width: `${progress}%` }}
-                          />
-                        </div>
-                        <span className="erp-progress-label" style={{ fontSize: '14px' }}>{progress}%</span>
-                      </div>
-                    </td>
-                    <td style={{ fontSize: '14.5px' }}>{proj.start_date ? new Date(proj.start_date).toLocaleDateString() : '-'}</td>
-                    <td style={{ fontSize: '14.5px' }}>{proj.deadline_date ? new Date(proj.deadline_date).toLocaleDateString() : '-'}</td>
-                    <td>
-                      <StatusBadge status={proj.status} style={{ fontSize: '12.5px', padding: '2.5px 8.5px' }} />
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div className="erp-dropdown-container">
-                        <button
-                          type="button"
-                          className="erp-btn erp-btn-secondary erp-btn-sm"
-                          style={{ padding: '4px 8px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenMenuProjectId(openMenuProjectId === proj.id ? null : proj.id);
-                          }}
-                          title="Actions"
-                          aria-label="Actions"
-                        >
-                          <MoreHorizontal size={15} />
-                        </button>
+      {viewMode === 'card' ? (
+        isLoading ? (
+          <div
+            className="erp-table-container"
+            style={{ padding: '36px 20px', textAlign: 'center', fontSize: '14.5px', color: 'var(--erp-text-muted)' }}
+          >
+            Loading projects...
+          </div>
+        ) : projects.length === 0 ? (
+          <div
+            className="erp-table-container"
+            style={{ padding: '36px 20px', textAlign: 'center', fontSize: '14.5px', color: 'var(--erp-text-muted)' }}
+          >
+            No projects found. Projects will appear here automatically when sales deals are Closed Won.
+          </div>
+        ) : (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+              gap: '16px',
+            }}
+          >
+            {projects.map(proj => {
+              const progress = getProjectCalculatedProgress(proj.id, proj.status);
+              const exportValidation = checkProjectExportValidation(proj);
+              const customerName = proj.customer?.name || customers.find(c => c.id === proj.customer_id)?.name || '-';
 
-                        {openMenuProjectId === proj.id && (
-                          <div className="erp-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              type="button"
-                              className="erp-dropdown-item"
-                              onClick={() => {
-                                setOpenMenuProjectId(null);
-                                handleOpenEditModal(proj);
-                              }}
-                            >
-                              <Pencil size={13} />
-                              <span>Edit</span>
-                            </button>
-                            <button
-                              type="button"
-                              className="erp-dropdown-item"
-                              onClick={() => {
-                                setOpenMenuProjectId(null);
-                                navigate({ to: `/projects/${proj.id}` });
-                              }}
-                            >
-                              <SlidersHorizontal size={13} />
-                              <span>Project Workspace</span>
-                            </button>
-                            <div className="erp-dropdown-divider" />
-                            {proj.status === 'Cancelled' ? (
+              return (
+                <div
+                  key={proj.id}
+                  style={{
+                    backgroundColor: 'var(--erp-surface)',
+                    border: '1px solid var(--erp-border)',
+                    borderRadius: 'var(--erp-radius-card)',
+                    padding: '16px 18px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '14px',
+                    cursor: 'pointer',
+                    transition: 'border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                  }}
+                  onClick={() => navigate({ to: `/projects/${proj.id}` })}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--erp-primary)')}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--erp-border)')}
+                >
+                  <div>
+                    {/* Card Header: Project Number, Name, Status Badge, and Action dropdown */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontSize: '11.5px', color: 'var(--erp-text-muted)', marginBottom: '3px' }}>
+                          {proj.project_number || `PRJ-${String(proj.id).padStart(4, '0')}`}
+                        </div>
+                        <h3
+                          style={{
+                            fontSize: '16px',
+                            fontWeight: 600,
+                            color: 'var(--erp-text-main)',
+                            margin: 0,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                          title={proj.project_name}
+                        >
+                          {proj.project_name}
+                        </h3>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                        <StatusBadge status={proj.status} style={{ fontSize: '12px', padding: '2px 8px' }} />
+
+                        <div className="erp-dropdown-container">
+                          <button
+                            type="button"
+                            className="erp-btn erp-btn-secondary erp-btn-sm"
+                            style={{ padding: '4px 8px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                            onClick={e => {
+                              e.stopPropagation();
+                              setOpenMenuProjectId(openMenuProjectId === proj.id ? null : proj.id);
+                            }}
+                            title="Actions"
+                            aria-label="Actions"
+                          >
+                            <MoreHorizontal size={15} />
+                          </button>
+
+                          {openMenuProjectId === proj.id && (
+                            <div className="erp-dropdown-menu" onClick={e => e.stopPropagation()}>
                               <button
                                 type="button"
                                 className="erp-dropdown-item"
-                                onClick={async () => {
+                                onClick={() => {
                                   setOpenMenuProjectId(null);
-                                  await updateStatus(proj.id, 'Starting');
+                                  handleOpenEditModal(proj);
                                 }}
                               >
-                                <RotateCcw size={13} />
-                                <span>Reactivate Project</span>
+                                <Pencil size={13} />
+                                <span>Edit</span>
                               </button>
-                            ) : (
+                              <button
+                                type="button"
+                                className="erp-dropdown-item"
+                                onClick={() => {
+                                  setOpenMenuProjectId(null);
+                                  navigate({ to: `/projects/${proj.id}` });
+                                }}
+                              >
+                                <SlidersHorizontal size={13} />
+                                <span>Project Workspace</span>
+                              </button>
+                              <div className="erp-dropdown-divider" />
+                              {proj.status === 'Cancelled' ? (
+                                <button
+                                  type="button"
+                                  className="erp-dropdown-item"
+                                  onClick={async () => {
+                                    setOpenMenuProjectId(null);
+                                    await updateStatus(proj.id, 'Starting');
+                                  }}
+                                >
+                                  <RotateCcw size={13} />
+                                  <span>Reactivate Project</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="erp-dropdown-item danger"
+                                  onClick={async () => {
+                                    setOpenMenuProjectId(null);
+                                    await updateStatus(proj.id, 'Cancelled');
+                                  }}
+                                >
+                                  <Ban size={13} />
+                                  <span>Cancel Project</span>
+                                </button>
+                              )}
+                              <div className="erp-dropdown-divider" />
+                              <button
+                                type="button"
+                                className={`erp-dropdown-item ${!exportValidation.canExport ? 'disabled' : ''}`}
+                                disabled={!exportValidation.canExport}
+                                title={
+                                  exportValidation.canExport
+                                    ? 'Export project specification as PDF'
+                                    : `Cannot export: ${exportValidation.reason}`
+                                }
+                                onClick={() => {
+                                  if (!exportValidation.canExport) return;
+                                  setOpenMenuProjectId(null);
+                                  exportProjectToPDF(
+                                    proj,
+                                    customerName,
+                                    exportValidation.personnelList,
+                                    exportValidation.materialsList
+                                  );
+                                }}
+                              >
+                                <FileText size={13} />
+                                <span>Export as PDF</span>
+                              </button>
+                              <button
+                                type="button"
+                                className={`erp-dropdown-item ${!exportValidation.canExport ? 'disabled' : ''}`}
+                                disabled={!exportValidation.canExport}
+                                title={
+                                  exportValidation.canExport
+                                    ? 'Export project specification as Word (.doc)'
+                                    : `Cannot export: ${exportValidation.reason}`
+                                }
+                                onClick={() => {
+                                  if (!exportValidation.canExport) return;
+                                  setOpenMenuProjectId(null);
+                                  exportProjectToWord(
+                                    proj,
+                                    customerName,
+                                    exportValidation.personnelList,
+                                    exportValidation.materialsList
+                                  );
+                                }}
+                              >
+                                <FileDown size={13} />
+                                <span>Export as Word</span>
+                              </button>
+                              <div className="erp-dropdown-divider" />
                               <button
                                 type="button"
                                 className="erp-dropdown-item danger"
-                                onClick={async () => {
+                                onClick={() => {
                                   setOpenMenuProjectId(null);
-                                  await updateStatus(proj.id, 'Cancelled');
+                                  handleOpenDeleteModal(proj);
                                 }}
                               >
-                                <Ban size={13} />
-                                <span>Cancel Project</span>
+                                <Trash2 size={13} />
+                                <span>Delete</span>
                               </button>
-                            )}
-                            <div className="erp-dropdown-divider" />
-                            <button
-                              type="button"
-                              className={`erp-dropdown-item ${!exportValidation.canExport ? 'disabled' : ''}`}
-                              disabled={!exportValidation.canExport}
-                              title={
-                                exportValidation.canExport
-                                  ? 'Export project specification as PDF'
-                                  : `Cannot export: ${exportValidation.reason}`
-                              }
-                              onClick={() => {
-                                if (!exportValidation.canExport) return;
-                                setOpenMenuProjectId(null);
-                                exportProjectToPDF(
-                                  proj,
-                                  customerName,
-                                  exportValidation.personnelList,
-                                  exportValidation.materialsList
-                                );
-                              }}
-                            >
-                              <FileText size={13} />
-                              <span>Export as PDF</span>
-                            </button>
-                            <button
-                              type="button"
-                              className={`erp-dropdown-item ${!exportValidation.canExport ? 'disabled' : ''}`}
-                              disabled={!exportValidation.canExport}
-                              title={
-                                exportValidation.canExport
-                                  ? 'Export project specification as Word (.doc)'
-                                  : `Cannot export: ${exportValidation.reason}`
-                              }
-                              onClick={() => {
-                                if (!exportValidation.canExport) return;
-                                setOpenMenuProjectId(null);
-                                exportProjectToWord(
-                                  proj,
-                                  customerName,
-                                  exportValidation.personnelList,
-                                  exportValidation.materialsList
-                                );
-                              }}
-                            >
-                              <FileDown size={13} />
-                              <span>Export as Word</span>
-                            </button>
-                            <div className="erp-dropdown-divider" />
-                            <button
-                              type="button"
-                              className="erp-dropdown-item danger"
-                              onClick={() => {
-                                setOpenMenuProjectId(null);
-                                handleOpenDeleteModal(proj);
-                              }}
-                            >
-                              <Trash2 size={13} />
-                              <span>Delete</span>
-                            </button>
-                          </div>
-                        )}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+                    </div>
+
+                    {/* Metadata: Location & Dates */}
+                    <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', color: 'var(--erp-text-main)' }}>
+                        <MapPin size={14} style={{ color: 'var(--erp-text-muted)', flexShrink: 0 }} />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {proj.location || 'Not Specified'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', color: 'var(--erp-text-muted)', fontSize: '12.5px' }}>
+                        <Calendar size={14} style={{ flexShrink: 0 }} />
+                        <span>
+                          {proj.start_date ? new Date(proj.start_date).toLocaleDateString() : '-'}
+                          {' – '}
+                          {proj.deadline_date ? new Date(proj.deadline_date).toLocaleDateString() : '-'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom Progress Bar */}
+                  <div style={{ borderTop: '1px solid var(--erp-border)', paddingTop: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', fontSize: '12.5px' }}>
+                      <span style={{ color: 'var(--erp-text-muted)' }}>Progress</span>
+                      <span style={{ fontWeight: 600, color: progress === 100 ? '#059669' : 'var(--erp-text-main)' }}>
+                        {progress}%
+                      </span>
+                    </div>
+                    <div className="erp-progress-track" style={{ height: '6px', margin: 0 }}>
+                      <div
+                        className={`erp-progress-bar ${progress === 100 ? 'completed' : ''}`}
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )
+      ) : (
+        /* Full-Width Project Table */
+        <div className="erp-table-container">
+          <table className="erp-table">
+            <thead>
+              <tr>
+                <th style={{ fontSize: '13.5px' }}>Project Name</th>
+                <th style={{ fontSize: '13.5px' }}>Site Location</th>
+                <th style={{ fontSize: '13.5px' }}>Progress</th>
+                <th style={{ fontSize: '13.5px' }}>Start Date</th>
+                <th style={{ fontSize: '13.5px' }}>End Date</th>
+                <th style={{ fontSize: '13.5px' }}>Status</th>
+                <th style={{ textAlign: 'right', fontSize: '13.5px' }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '24px', fontSize: '14.5px' }}>
+                    Loading projects...
+                  </td>
+                </tr>
+              ) : projects.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '24px', color: 'var(--erp-text-muted)', fontSize: '14.5px' }}>
+                    No projects found. Projects will appear here automatically when sales deals are Closed Won.
+                  </td>
+                </tr>
+              ) : (
+                projects.map(proj => {
+                  const progress = getProjectCalculatedProgress(proj.id, proj.status);
+                  const exportValidation = checkProjectExportValidation(proj);
+                  const customerName = proj.customer?.name || customers.find(c => c.id === proj.customer_id)?.name || '-';
+                  return (
+                    <tr key={proj.id}>
+                      <td
+                        style={{
+                          fontWeight: 400,
+                          fontSize: '15.5px',
+                          color: 'var(--erp-text-main)',
+                          cursor: 'pointer'
+                        }}
+                        title={`Open Workflow & BOM for ${proj.project_name}`}
+                        onClick={() => navigate({ to: `/projects/${proj.id}` })}
+                      >
+                        {proj.project_name}
+                      </td>
+                      <td style={{ fontSize: '14.5px' }}>{proj.location || '-'}</td>
+                      <td>
+                        <div className="erp-progress-wrapper">
+                          <div className="erp-progress-track" style={{ height: '7px' }}>
+                            <div
+                              className={`erp-progress-bar ${progress === 100 ? 'completed' : ''}`}
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                          <span className="erp-progress-label" style={{ fontSize: '14px' }}>{progress}%</span>
+                        </div>
+                      </td>
+                      <td style={{ fontSize: '14.5px' }}>{proj.start_date ? new Date(proj.start_date).toLocaleDateString() : '-'}</td>
+                      <td style={{ fontSize: '14.5px' }}>{proj.deadline_date ? new Date(proj.deadline_date).toLocaleDateString() : '-'}</td>
+                      <td>
+                        <StatusBadge status={proj.status} style={{ fontSize: '12.5px', padding: '2.5px 8.5px' }} />
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div className="erp-dropdown-container">
+                          <button
+                            type="button"
+                            className="erp-btn erp-btn-secondary erp-btn-sm"
+                            style={{ padding: '4px 8px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenuProjectId(openMenuProjectId === proj.id ? null : proj.id);
+                            }}
+                            title="Actions"
+                            aria-label="Actions"
+                          >
+                            <MoreHorizontal size={15} />
+                          </button>
+
+                          {openMenuProjectId === proj.id && (
+                            <div className="erp-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                className="erp-dropdown-item"
+                                onClick={() => {
+                                  setOpenMenuProjectId(null);
+                                  handleOpenEditModal(proj);
+                                }}
+                              >
+                                <Pencil size={13} />
+                                <span>Edit</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="erp-dropdown-item"
+                                onClick={() => {
+                                  setOpenMenuProjectId(null);
+                                  navigate({ to: `/projects/${proj.id}` });
+                                }}
+                              >
+                                <SlidersHorizontal size={13} />
+                                <span>Project Workspace</span>
+                              </button>
+                              <div className="erp-dropdown-divider" />
+                              {proj.status === 'Cancelled' ? (
+                                <button
+                                  type="button"
+                                  className="erp-dropdown-item"
+                                  onClick={async () => {
+                                    setOpenMenuProjectId(null);
+                                    await updateStatus(proj.id, 'Starting');
+                                  }}
+                                >
+                                  <RotateCcw size={13} />
+                                  <span>Reactivate Project</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="erp-dropdown-item danger"
+                                  onClick={async () => {
+                                    setOpenMenuProjectId(null);
+                                    await updateStatus(proj.id, 'Cancelled');
+                                  }}
+                                >
+                                  <Ban size={13} />
+                                  <span>Cancel Project</span>
+                                </button>
+                              )}
+                              <div className="erp-dropdown-divider" />
+                              <button
+                                type="button"
+                                className={`erp-dropdown-item ${!exportValidation.canExport ? 'disabled' : ''}`}
+                                disabled={!exportValidation.canExport}
+                                title={
+                                  exportValidation.canExport
+                                    ? 'Export project specification as PDF'
+                                    : `Cannot export: ${exportValidation.reason}`
+                                }
+                                onClick={() => {
+                                  if (!exportValidation.canExport) return;
+                                  setOpenMenuProjectId(null);
+                                  exportProjectToPDF(
+                                    proj,
+                                    customerName,
+                                    exportValidation.personnelList,
+                                    exportValidation.materialsList
+                                  );
+                                }}
+                              >
+                                <FileText size={13} />
+                                <span>Export as PDF</span>
+                              </button>
+                              <button
+                                type="button"
+                                className={`erp-dropdown-item ${!exportValidation.canExport ? 'disabled' : ''}`}
+                                disabled={!exportValidation.canExport}
+                                title={
+                                  exportValidation.canExport
+                                    ? 'Export project specification as Word (.doc)'
+                                    : `Cannot export: ${exportValidation.reason}`
+                                }
+                                onClick={() => {
+                                  if (!exportValidation.canExport) return;
+                                  setOpenMenuProjectId(null);
+                                  exportProjectToWord(
+                                    proj,
+                                    customerName,
+                                    exportValidation.personnelList,
+                                    exportValidation.materialsList
+                                  );
+                                }}
+                              >
+                                <FileDown size={13} />
+                                <span>Export as Word</span>
+                              </button>
+                              <div className="erp-dropdown-divider" />
+                              <button
+                                type="button"
+                                className="erp-dropdown-item danger"
+                                onClick={() => {
+                                  setOpenMenuProjectId(null);
+                                  handleOpenDeleteModal(proj);
+                                }}
+                              >
+                                <Trash2 size={13} />
+                                <span>Delete</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Modal: Project Management & Lifecycle Workflow */}
       <Modal

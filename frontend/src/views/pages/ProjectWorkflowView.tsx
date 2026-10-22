@@ -30,7 +30,8 @@ import {
   exportProjectToWord,
   generateScheduleExportBody,
   exportScheduleToPDF,
-  exportScheduleToWord
+  exportScheduleToWord,
+  viewDocumentInNewTab
 } from '../../utils/exportTemplate';
 
 interface ProjectDoc {
@@ -114,6 +115,7 @@ export const ProjectWorkflowView: React.FC = () => {
   const [taskStartDateInput, setTaskStartDateInput] = useState<string>('');
   const [taskEndDateInput, setTaskEndDateInput] = useState<string>('');
   const [taskFormError, setTaskFormError] = useState<string>('');
+  const [taskDateErrors, setTaskDateErrors] = useState<{ start?: string; end?: string }>({});
 
   // Subtask Add Modal state
   const [isAddSubtaskModalOpen, setIsAddSubtaskModalOpen] = useState<boolean>(false);
@@ -174,8 +176,6 @@ export const ProjectWorkflowView: React.FC = () => {
   const [isUploadDocModalOpen, setIsUploadDocModalOpen] = useState(false);
   const [newDoc, setNewDoc] = useState({ name: '', document_type: 'General', file_name: '' });
   const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
-  const [viewingDoc, setViewingDoc] = useState<ProjectDoc | null>(null);
-  const [isViewDocModalOpen, setIsViewDocModalOpen] = useState(false);
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
@@ -456,6 +456,7 @@ export const ProjectWorkflowView: React.FC = () => {
     setTaskStartDateInput(defaultStart);
     setTaskEndDateInput(defaultEnd);
     setTaskFormError('');
+    setTaskDateErrors({});
     setIsTaskModalOpen(true);
   };
 
@@ -466,17 +467,31 @@ export const ProjectWorkflowView: React.FC = () => {
     setTaskStartDateInput(task.start_date || '');
     setTaskEndDateInput(task.est_end_date || task.end_date || '');
     setTaskFormError('');
+    setTaskDateErrors({});
     setIsTaskModalOpen(true);
   };
 
   const handleSaveTaskSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = taskNameInput.trim();
-    if (!trimmed) {
-      setTaskFormError('Task name is required.');
+    const errors: { start?: string; end?: string } = {};
+
+    if (!taskStartDateInput || !taskStartDateInput.trim()) {
+      errors.start = 'Start date is required';
+    }
+    if (!taskEndDateInput || !taskEndDateInput.trim()) {
+      errors.end = 'Est. end date is required';
+    } else if (taskStartDateInput && taskEndDateInput < taskStartDateInput) {
+      errors.end = 'Cannot be earlier than start date';
+    }
+
+    if (!trimmed || errors.start || errors.end) {
+      if (!trimmed) setTaskFormError('Task name is required.');
+      setTaskDateErrors(errors);
       return;
     }
     setTaskFormError('');
+    setTaskDateErrors({});
 
     let updatedTasks: ProjectTask[];
     if (editingTaskId) {
@@ -523,15 +538,19 @@ export const ProjectWorkflowView: React.FC = () => {
   ): { start?: string; end?: string } => {
     const errors: { start?: string; end?: string } = {};
 
-    if (startDate && parentStartDate && startDate < parentStartDate) {
+    if (!startDate || !startDate.trim()) {
+      errors.start = 'Start date is required';
+    } else if (parentStartDate && startDate < parentStartDate) {
       errors.start = `Cannot be earlier than main task start (${parentStartDate})`;
-    } else if (startDate && parentEndDate && startDate > parentEndDate) {
+    } else if (parentEndDate && startDate > parentEndDate) {
       errors.start = `Cannot be later than main task end (${parentEndDate})`;
     }
 
-    if (endDate && parentEndDate && endDate > parentEndDate) {
+    if (!endDate || !endDate.trim()) {
+      errors.end = 'Est. end date is required';
+    } else if (parentEndDate && endDate > parentEndDate) {
       errors.end = `Cannot be later than main task end (${parentEndDate})`;
-    } else if (endDate && parentStartDate && endDate < parentStartDate) {
+    } else if (parentStartDate && endDate < parentStartDate) {
       errors.end = `Cannot be earlier than main task start (${parentStartDate})`;
     } else if (startDate && endDate && endDate < startDate) {
       errors.end = 'Cannot be earlier than start date';
@@ -940,6 +959,44 @@ export const ProjectWorkflowView: React.FC = () => {
 
   const customerDisplayName = project?.customer?.name || (project as any)?.customer_name || 'Valued Customer';
 
+  const handleViewProjectDoc = (doc: ProjectDoc) => {
+    setOpenActionMenuId(null);
+    if (!project) return;
+
+    if (doc.id === 1) {
+      const htmlBody = generateProjectExportBody(
+        project,
+        customerDisplayName,
+        personnelList,
+        materialsList
+      );
+      viewDocumentInNewTab(
+        `${project.project_name || 'Project'} - Project Specification & Resource Allocation`,
+        htmlBody
+      );
+    } else if (doc.id === 2) {
+      const htmlBody = generateScheduleExportBody(
+        project,
+        customerDisplayName,
+        tasks
+      );
+      viewDocumentInNewTab(
+        `${project.project_name || 'Project'} - Project Schedule & Milestone Timeline`,
+        htmlBody
+      );
+    } else {
+      const customContent = `
+        <div style="padding: 40px 20px; text-align: center; color: #475569;">
+          <h2 style="font-size: 18px; color: #0f172a; margin-bottom: 8px;">${doc.name}</h2>
+          <p style="font-size: 13px; color: #64748b; margin: 4px 0;">File: ${doc.file_name || `${doc.name}.pdf`}</p>
+          <p style="font-size: 12px; color: #94a3b8; margin: 4px 0;">Uploaded Date: ${doc.uploaded_at || 'Default'}</p>
+          <p style="font-size: 12px; color: #94a3b8; margin: 4px 0;">Project: ${project.project_name}</p>
+        </div>
+      `;
+      viewDocumentInNewTab(doc.name, customContent);
+    }
+  };
+
   const handleExportDefaultDoc = (docId: number, format: 'pdf' | 'word') => {
     if (!project) return;
     if (docId === 1) {
@@ -1187,46 +1244,11 @@ export const ProjectWorkflowView: React.FC = () => {
                   <span style={{ color: 'var(--erp-text-muted)', width: '165px', flexShrink: 0 }}>Project Type:</span>
                   <span style={{ textAlign: 'left', fontWeight: 400 }}>{project.project_type || 'Window & Door Installation'}</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', fontSize: '14.5px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <span style={{ color: 'var(--erp-text-muted)', width: '165px', flexShrink: 0 }}>Project Status:</span>
-                    <div style={{ textAlign: 'left' }}>
-                      <StatusBadge status={calculateDynamicProjectStatus(project, tasks)} />
-                    </div>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', fontSize: '14.5px' }}>
+                  <span style={{ color: 'var(--erp-text-muted)', width: '165px', flexShrink: 0 }}>Project Status:</span>
+                  <div style={{ textAlign: 'left' }}>
+                    <StatusBadge status={calculateDynamicProjectStatus(project, tasks)} />
                   </div>
-                  {project.status === 'Cancelled' ? (
-                    <button
-                      type="button"
-                      className="erp-btn erp-btn-secondary erp-btn-sm"
-                      style={{ fontSize: '12px', padding: '2px 8px', height: '26px' }}
-                      onClick={async () => {
-                        try {
-                          await api.put(`/projects/${project.id}`, { status: 'Starting' });
-                          setProject(prev => prev ? { ...prev, status: 'Starting' } : prev);
-                        } catch (err: any) {
-                          setErrorMessage(err.message || 'Failed to reactivate project');
-                        }
-                      }}
-                    >
-                      Reactivate Project
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="erp-btn erp-btn-secondary erp-btn-sm"
-                      style={{ fontSize: '12px', padding: '2px 8px', height: '26px', color: 'var(--erp-text-error)' }}
-                      onClick={async () => {
-                        try {
-                          await api.put(`/projects/${project.id}`, { status: 'Cancelled' });
-                          setProject(prev => prev ? { ...prev, status: 'Cancelled' } : prev);
-                        } catch (err: any) {
-                          setErrorMessage(err.message || 'Failed to cancel project');
-                        }
-                      }}
-                    >
-                      Cancel Project
-                    </button>
-                  )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', fontSize: '14.5px' }}>
                   <span style={{ color: 'var(--erp-text-muted)', width: '165px', flexShrink: 0 }}>Project Site Location:</span>
@@ -1489,7 +1511,7 @@ export const ProjectWorkflowView: React.FC = () => {
                     onClick={() => handleOpenAssignPersonnel()}
                   >
                     <UserCheck size={14} />
-                    <span>Assign Personnel</span>
+                    <span>Assign Worker</span>
                   </button>
                 ) : (
                   <button
@@ -1528,7 +1550,7 @@ export const ProjectWorkflowView: React.FC = () => {
                     onClick={() => handleOpenAssignPersonnel()}
                   >
                     <UserCheck size={14} />
-                    <span>Assign Personnel</span>
+                    <span>Assign Worker</span>
                   </button>
                 </div>
               ) : (
@@ -2146,9 +2168,13 @@ export const ProjectWorkflowView: React.FC = () => {
                     return (
                       <tr key={doc.id}>
                         <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div
+                            style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+                            onClick={() => handleViewProjectDoc(doc)}
+                            title={`View ${doc.name}`}
+                          >
                             <FileText size={15} style={{ color: 'var(--erp-text-muted)', flexShrink: 0 }} />
-                            <span style={{ fontWeight: 500 }}>{doc.name}</span>
+                            <span style={{ fontWeight: 400 }}>{doc.name}</span>
                           </div>
                         </td>
                         <td>
@@ -2198,11 +2224,7 @@ export const ProjectWorkflowView: React.FC = () => {
                                 <button
                                   type="button"
                                   className="erp-dropdown-item"
-                                  onClick={() => {
-                                    setOpenActionMenuId(null);
-                                    setViewingDoc(doc);
-                                    setIsViewDocModalOpen(true);
-                                  }}
+                                  onClick={() => handleViewProjectDoc(doc)}
                                 >
                                   <Eye size={13} style={{ color: 'var(--erp-primary)' }} />
                                   <span>View</span>
@@ -2665,22 +2687,46 @@ export const ProjectWorkflowView: React.FC = () => {
 
             <div className="erp-form-row">
               <div className="erp-form-group">
-                <label className="erp-form-label">Start Date</label>
+                <label className="erp-form-label">
+                  Start Date <span style={{ color: 'var(--erp-text-error)' }}>*</span>
+                </label>
                 <input
                   type="date"
+                  required
                   className="erp-input"
+                  style={taskDateErrors.start ? { borderColor: 'var(--erp-border-error)' } : undefined}
                   value={taskStartDateInput}
-                  onChange={e => setTaskStartDateInput(e.target.value)}
+                  onChange={e => {
+                    setTaskStartDateInput(e.target.value);
+                    if (taskDateErrors.start) setTaskDateErrors(prev => ({ ...prev, start: undefined }));
+                  }}
                 />
+                {taskDateErrors.start && (
+                  <span style={{ fontSize: '12px', color: 'var(--erp-text-error)', marginTop: '4px' }}>
+                    {taskDateErrors.start}
+                  </span>
+                )}
               </div>
               <div className="erp-form-group">
-                <label className="erp-form-label">Est. End Date</label>
+                <label className="erp-form-label">
+                  Est. End Date <span style={{ color: 'var(--erp-text-error)' }}>*</span>
+                </label>
                 <input
                   type="date"
+                  required
                   className="erp-input"
+                  style={taskDateErrors.end ? { borderColor: 'var(--erp-border-error)' } : undefined}
                   value={taskEndDateInput}
-                  onChange={e => setTaskEndDateInput(e.target.value)}
+                  onChange={e => {
+                    setTaskEndDateInput(e.target.value);
+                    if (taskDateErrors.end) setTaskDateErrors(prev => ({ ...prev, end: undefined }));
+                  }}
                 />
+                {taskDateErrors.end && (
+                  <span style={{ fontSize: '12px', color: 'var(--erp-text-error)', marginTop: '4px' }}>
+                    {taskDateErrors.end}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -2746,15 +2792,11 @@ export const ProjectWorkflowView: React.FC = () => {
                   <div className="erp-form-row">
                     <div className="erp-form-group">
                       <label className="erp-form-label">
-                        Start Date
-                        {parentStart && (
-                          <span style={{ fontSize: '11px', color: 'var(--erp-text-muted)', fontWeight: 400, marginLeft: '6px' }}>
-                            (Min: {parentStart})
-                          </span>
-                        )}
+                        Start Date <span style={{ color: 'var(--erp-text-error)' }}>*</span>
                       </label>
                       <input
                         type="date"
+                        required
                         className="erp-input"
                         min={parentStart || undefined}
                         max={editingSubtaskData.est_end_date || parentEnd || undefined}
@@ -2777,15 +2819,11 @@ export const ProjectWorkflowView: React.FC = () => {
 
                     <div className="erp-form-group">
                       <label className="erp-form-label">
-                        Est. End Date
-                        {parentEnd && (
-                          <span style={{ fontSize: '11px', color: 'var(--erp-text-muted)', fontWeight: 400, marginLeft: '6px' }}>
-                            (Max: {parentEnd})
-                          </span>
-                        )}
+                        Est. End Date <span style={{ color: 'var(--erp-text-error)' }}>*</span>
                       </label>
                       <input
                         type="date"
+                        required
                         className="erp-input"
                         min={editingSubtaskData.start_date || parentStart || undefined}
                         max={parentEnd || undefined}
@@ -2838,43 +2876,25 @@ export const ProjectWorkflowView: React.FC = () => {
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="5"
-                    value={editingSubtaskData.progress}
-                    onChange={e =>
-                      setEditingSubtaskData(prev =>
-                        prev ? { ...prev, progress: Number(e.target.value) } : null
-                      )
-                    }
-                    style={{
-                      flex: 1,
-                      height: '6px',
-                      borderRadius: '999px',
-                      cursor: 'pointer',
-                      accentColor: editingSubtaskData.progress === 100 ? '#059669' : 'var(--erp-primary)',
-                    }}
-                  />
-                  <div style={{ display: 'flex', alignItems: 'center', width: '74px' }}>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="1"
-                      className="erp-input"
-                      style={{ height: '32px', textAlign: 'center', padding: '2px 4px', fontSize: '13px' }}
-                      value={editingSubtaskData.progress}
-                      onChange={e => {
-                        const val = Math.max(0, Math.min(100, Number(e.target.value) || 0));
-                        setEditingSubtaskData(prev => (prev ? { ...prev, progress: val } : null));
-                      }}
-                    />
-                    <span style={{ marginLeft: '4px', fontSize: '13px', color: 'var(--erp-text-muted)' }}>%</span>
-                  </div>
-                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={editingSubtaskData.progress}
+                  onChange={e =>
+                    setEditingSubtaskData(prev =>
+                      prev ? { ...prev, progress: Number(e.target.value) } : null
+                    )
+                  }
+                  style={{
+                    width: '100%',
+                    height: '6px',
+                    borderRadius: '999px',
+                    cursor: 'pointer',
+                    accentColor: editingSubtaskData.progress === 100 ? '#059669' : 'var(--erp-primary)',
+                  }}
+                />
               </div>
             </div>
 
@@ -2954,15 +2974,11 @@ export const ProjectWorkflowView: React.FC = () => {
                 <div className="erp-form-row">
                   <div className="erp-form-group">
                     <label className="erp-form-label">
-                      Start Date
-                      {parentStart && (
-                        <span style={{ fontSize: '11px', color: 'var(--erp-text-muted)', fontWeight: 400, marginLeft: '6px' }}>
-                          (Min: {parentStart})
-                        </span>
-                      )}
+                      Start Date <span style={{ color: 'var(--erp-text-error)' }}>*</span>
                     </label>
                     <input
                       type="date"
+                      required
                       className="erp-input"
                       min={parentStart || undefined}
                       max={subtaskEstEndDateInput || parentEnd || undefined}
@@ -2985,15 +3001,11 @@ export const ProjectWorkflowView: React.FC = () => {
 
                   <div className="erp-form-group">
                     <label className="erp-form-label">
-                      Est. End Date
-                      {parentEnd && (
-                        <span style={{ fontSize: '11px', color: 'var(--erp-text-muted)', fontWeight: 400, marginLeft: '6px' }}>
-                          (Max: {parentEnd})
-                        </span>
-                      )}
+                      Est. End Date <span style={{ color: 'var(--erp-text-error)' }}>*</span>
                     </label>
                     <input
                       type="date"
+                      required
                       className="erp-input"
                       min={subtaskStartDateInput || parentStart || undefined}
                       max={parentEnd || undefined}
@@ -3036,81 +3048,7 @@ export const ProjectWorkflowView: React.FC = () => {
         </form>
       </Modal>
 
-      {/* Modal 9: View Document Modal */}
-      <Modal
-        isOpen={isViewDocModalOpen}
-        onClose={() => {
-          setIsViewDocModalOpen(false);
-          setViewingDoc(null);
-        }}
-        title={viewingDoc?.name || 'Document'}
-        maxWidth="900px"
-      >
-        {viewingDoc && (
-          <div className="erp-modal-body" style={{ maxHeight: '80vh', overflowY: 'auto', padding: '16px' }}>
-            {/* Default Doc 1: Project Specification & Resource Allocation (Exact export template as ProjectsView) */}
-            {viewingDoc.id === 1 && (
-              <div
-                style={{
-                  backgroundColor: '#ffffff',
-                  border: '1px solid var(--erp-border)',
-                  borderRadius: 'var(--erp-radius-card)',
-                  overflowX: 'auto',
-                }}
-                dangerouslySetInnerHTML={{
-                  __html: generateProjectExportBody(
-                    project || ({} as Project),
-                    customerDisplayName,
-                    personnelList,
-                    materialsList
-                  )
-                }}
-              />
-            )}
 
-            {/* Default Doc 2: Project Schedule & Milestone Timeline */}
-            {viewingDoc.id === 2 && (
-              <div
-                style={{
-                  backgroundColor: '#ffffff',
-                  border: '1px solid var(--erp-border)',
-                  borderRadius: 'var(--erp-radius-card)',
-                  overflowX: 'auto',
-                }}
-                dangerouslySetInnerHTML={{
-                  __html: generateScheduleExportBody(
-                    project || ({} as Project),
-                    customerDisplayName,
-                    tasks
-                  )
-                }}
-              />
-            )}
-
-            {/* Custom Doc View */}
-            {viewingDoc.id !== 1 && viewingDoc.id !== 2 && (
-              <div style={{ padding: '36px 20px', textAlign: 'center', color: 'var(--erp-text-muted)', fontSize: '13px' }}>
-                <FileText size={36} style={{ color: 'var(--erp-primary)', margin: '0 auto 10px auto', display: 'block' }} />
-                <p style={{ margin: 0, fontWeight: 500, color: 'var(--erp-text-main)' }}>{viewingDoc.name}</p>
-                <p style={{ margin: '4px 0 0 0', fontSize: '12px' }}>{viewingDoc.file_name || `${viewingDoc.name}.pdf`}</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="erp-modal-footer">
-          <button
-            type="button"
-            className="erp-btn erp-btn-secondary"
-            onClick={() => {
-              setIsViewDocModalOpen(false);
-              setViewingDoc(null);
-            }}
-          >
-            Close
-          </button>
-        </div>
-      </Modal>
 
     </div>
   );

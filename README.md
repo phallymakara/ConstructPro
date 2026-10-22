@@ -54,6 +54,7 @@ The platform is designed with a decoupled client-server architecture:
 ```text
 ConstructPro/
 ├── docker-compose.yml          # Container configuration (PostgreSQL, backend, frontend)
+├── docker-compose.dev.yml      # Development database container (PostgreSQL only)
 ├── docker/
 │   ├── backend/
 │   │   └── Dockerfile.dev      # Development container for FastAPI backend
@@ -97,18 +98,20 @@ ConstructPro/
 
 ### 1. Database Setup
 
-Start the PostgreSQL service using Docker Compose:
+Start only the PostgreSQL database service for local development (enables fast live reload for backend & frontend on host):
 
 ```bash
-docker compose up -d
+docker compose -f docker-compose.dev.yml up -d
 ```
+
+*(Alternatively, to run the entire stack including backend and frontend in containers, run `docker compose up -d`)*
 
 This launches a PostgreSQL container named `constructpro_db` on port `5432`.
 
 To verify database status:
 
 ```bash
-docker compose ps
+docker compose -f docker-compose.dev.yml ps
 ```
 
 ### 2. Backend Setup

@@ -127,6 +127,13 @@ export interface ProjectWorkerLog {
 }
 
 export type ProjectStatus =
+  | 'Inquiry'
+  | 'Discussion'
+  | 'Quotation'
+  | 'Negotiation'
+  | 'Accepted'
+  | 'Closed Won'
+  | 'Closed Lost'
   | 'Starting'
   | 'In Progress'
   | 'Overdue'
@@ -134,7 +141,6 @@ export type ProjectStatus =
   | 'Cancelled'
   | 'Canceled'
   | 'Draft'
-  | 'Quotation'
   | 'Approved'
   | 'Material Preparation'
   | 'Production'
@@ -175,6 +181,7 @@ export interface Project {
   preferred_contact_method?: string;
   notes?: string;
   description?: string;
+  source?: string;
   created_at: string;
   customer?: Customer;
   items: ProjectItem[];
@@ -202,7 +209,17 @@ export interface ProjectFormData {
   service_cost?: number;
   effort_hours?: number;
   effort_completed_hours?: number;
+  actual_start_date?: string;
+  actual_end_date?: string;
+  priority?: 'Low' | 'Medium' | 'High' | 'Urgent' | string;
+  customer_representative?: string;
+  site_supervisor?: string;
+  preferred_contact_method?: string;
+  material_cost?: number;
+  labor_cost?: number;
+  other_expenses?: number;
   notes?: string;
+  source?: string;
   items?: ProjectItemFormData[];
 }
 
