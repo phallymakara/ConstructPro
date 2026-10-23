@@ -34,11 +34,36 @@ class CustomerOut(CustomerBase):
         from_attributes = True
 
 
+# --- Product Category Schemas ---
+class ProductCategoryBase(BaseModel):
+    name: str = Field(..., min_length=1)
+    description: Optional[str] = None
+
+class ProductCategoryCreate(ProductCategoryBase):
+    pass
+
+class ProductCategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+class ProductCategoryOut(ProductCategoryBase):
+    id: int
+    created_at: datetime
+    product_count: Optional[int] = 0
+    total_stock: Optional[float] = 0.0
+
+    class Config:
+        from_attributes = True
+
+
 # --- Material Schemas ---
 class MaterialBase(BaseModel):
     code: str = Field(..., min_length=1)
     name: str = Field(..., min_length=1)
+    barcode: Optional[str] = None
     category: str = "Profile"
+    category_id: Optional[int] = None
+    product_type: Optional[str] = "Standard"
     unit: str = "m"
     unit_cost: float = Field(0.0, ge=0)
     current_stock: float = Field(0.0, ge=0)
@@ -51,8 +76,12 @@ class MaterialCreate(MaterialBase):
     pass
 
 class MaterialUpdate(BaseModel):
+    code: Optional[str] = None
     name: Optional[str] = None
+    barcode: Optional[str] = None
     category: Optional[str] = None
+    category_id: Optional[int] = None
+    product_type: Optional[str] = None
     unit: Optional[str] = None
     unit_cost: Optional[float] = None
     current_stock: Optional[float] = None
@@ -74,7 +103,7 @@ class MaterialOut(MaterialBase):
 class StockMovementCreate(BaseModel):
     material_id: int
     project_id: Optional[int] = None
-    movement_type: str  # Receipt, Reservation, Release, Issue, Wastage, Adjustment
+    movement_type: str  # Stock In, Stock Out, Receipt, Reservation, Release, Issue, Wastage, Adjustment
     quantity: float
     unit_cost: Optional[float] = 0.0
     reference_note: Optional[str] = None
@@ -82,6 +111,12 @@ class StockMovementCreate(BaseModel):
 class StockMovementOut(BaseModel):
     id: int
     material_id: int
+    material_code: Optional[str] = None
+    material_name: Optional[str] = None
+    material_barcode: Optional[str] = None
+    material_category: Optional[str] = None
+    material_product_type: Optional[str] = None
+    material_unit: Optional[str] = None
     project_id: Optional[int] = None
     movement_type: str
     quantity: float

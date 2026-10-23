@@ -12,6 +12,9 @@ class ProjectStatus(str, enum.Enum):
     QUOTATION = "Quotation"
     NEGOTIATION = "Negotiation"
     ACCEPTED = "Accepted"
+    CLOSED_WON = "Closed Won"
+    CLOSED_LOST = "Closed Lost"
+    INCOMING_PROJECT = "Incoming Project"
     STARTING = "Starting"
     IN_PROGRESS = "In Progress"
     OVERDUE = "Overdue"
@@ -65,13 +68,26 @@ class Customer(Base):
     projects = relationship("Project", back_populates="customer", cascade="all, delete-orphan")
     quotations = relationship("Quotation", back_populates="customer")
 
+class ProductCategory(Base):
+    __tablename__ = "product_categories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), unique=True, index=True, nullable=False)
+    description = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    materials = relationship("Material", back_populates="category_rel")
+
 class Material(Base):
     __tablename__ = "materials"
 
     id = Column(Integer, primary_key=True, index=True)
     code = Column(String(50), unique=True, index=True, nullable=False)
     name = Column(String(255), nullable=False)
-    category = Column(String(50), default=MaterialCategory.PROFILE.value)
+    barcode = Column(String(100), unique=True, index=True, nullable=True)
+    category = Column(String(100), index=True, default=MaterialCategory.PROFILE.value)
+    category_id = Column(Integer, ForeignKey("product_categories.id"), nullable=True)
+    product_type = Column(String(100), index=True, default="Standard", nullable=True)
     unit = Column(String(20), nullable=False)  # m, sq_m, pcs, kg, set
     unit_cost = Column(Float, default=0.0)
     current_stock = Column(Float, default=0.0)
@@ -81,6 +97,7 @@ class Material(Base):
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    category_rel = relationship("ProductCategory", back_populates="materials")
     movements = relationship("StockMovement", back_populates="material")
     requirements = relationship("ProjectMaterialRequirement", back_populates="material")
 

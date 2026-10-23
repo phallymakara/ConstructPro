@@ -22,13 +22,30 @@ export interface CustomerFormData {
   notes: string;
 }
 
-export type MaterialCategory = 'Profile' | 'Glass' | 'Seal' | 'Hardware' | 'Accessory' | 'Panel';
+export type MaterialCategory = 'Profile' | 'Glass' | 'Seal' | 'Hardware' | 'Accessory' | 'Panel' | (string & {});
+
+export interface ProductCategory {
+  id: number;
+  name: string;
+  description?: string;
+  created_at: string;
+  product_count?: number;
+  total_stock?: number;
+}
+
+export interface ProductCategoryFormData {
+  name: string;
+  description?: string;
+}
 
 export interface Material {
   id: number;
   code: string;
   name: string;
-  category: MaterialCategory;
+  barcode?: string;
+  category: string;
+  category_id?: number;
+  product_type?: string;
   unit: string;
   unit_cost: number;
   current_stock: number;
@@ -43,7 +60,10 @@ export interface Material {
 export interface MaterialFormData {
   code: string;
   name: string;
-  category: MaterialCategory;
+  barcode?: string;
+  category: string;
+  category_id?: number;
+  product_type?: string;
   unit: string;
   unit_cost: number;
   current_stock: number;
@@ -55,6 +75,12 @@ export interface MaterialFormData {
 export interface StockMovement {
   id: number;
   material_id: number;
+  material_code?: string;
+  material_name?: string;
+  material_barcode?: string;
+  material_category?: string;
+  material_product_type?: string;
+  material_unit?: string;
   project_id?: number;
   movement_type: string;
   quantity: number;
@@ -134,6 +160,7 @@ export type ProjectStatus =
   | 'Accepted'
   | 'Closed Won'
   | 'Closed Lost'
+  | 'Incoming Project'
   | 'Starting'
   | 'In Progress'
   | 'Overdue'

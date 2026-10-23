@@ -71,6 +71,27 @@ export function calculateProjectProgressText(project: Project): { percent: numbe
   };
 }
 
+export function normalizeSalesStatus(status?: string | null, source?: string | null): ProjectStatus {
+  if (source === 'sales_won') {
+    return 'Closed Won';
+  }
+  if (
+    status === 'Incoming Project' ||
+    status === 'Closed Won' ||
+    status === 'Accepted' ||
+    status === 'Completed'
+  ) {
+    return 'Closed Won';
+  }
+  if (status === 'In Progress' || status === 'Inprogress') {
+    return 'In Progress';
+  }
+  if (status === 'Closed Lost') {
+    return 'Closed Lost';
+  }
+  return 'Draft';
+}
+
 export function useSalesController() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -92,10 +113,10 @@ export function useSalesController() {
         api.get<Customer[]>('/customers/'),
       ]);
       const mapped = projData
-        .filter(p => p.source === 'sales')
+        .filter(p => p.source === 'sales' || p.source === 'sales_won')
         .map(p => ({
           ...p,
-          status: calculateDynamicProjectStatus(p),
+          status: normalizeSalesStatus(p.status, p.source),
         }));
       setProjects(mapped);
       setCustomers(custData);
@@ -158,7 +179,7 @@ export function useSalesController() {
       const newProj = await api.post<Project>('/projects/', payload);
       const dynamicNewProj = {
         ...newProj,
-        status: calculateDynamicProjectStatus(newProj),
+        status: normalizeSalesStatus(newProj.status, newProj.source),
       };
 
       setProjects(prev => [dynamicNewProj, ...prev]);
@@ -181,6 +202,20 @@ export function useSalesController() {
     setErrorMessage(null);
     setSuccessMessage(null);
     try {
+      const existingProject = projects.find(p => p.id === projectId);
+      if (
+        existingProject &&
+        (existingProject.status === 'Closed Won' ||
+          existingProject.status === 'Incoming Project' ||
+          existingProject.status === 'Accepted' ||
+          existingProject.status === 'Completed') &&
+        data.status &&
+        data.status !== 'Closed Won'
+      ) {
+        setErrorMessage('Status cannot be changed once a project is marked as Closed Won.');
+        return false;
+      }
+
       const payload: any = {};
       if (data.project_name !== undefined) payload.project_name = data.project_name.trim();
       if (data.customer_id !== undefined) payload.customer_id = data.customer_id;
@@ -199,7 +234,7 @@ export function useSalesController() {
       const updated = await api.put<Project>(`/projects/${projectId}`, payload);
       const dynamicUpdated = {
         ...updated,
-        status: calculateDynamicProjectStatus(updated),
+        status: normalizeSalesStatus(updated.status, updated.source),
       };
 
       setProjects(prev => prev.map(p => (p.id === projectId ? dynamicUpdated : p)));
@@ -219,20 +254,58 @@ export function useSalesController() {
     setErrorMessage(null);
     setSuccessMessage(null);
     try {
-      const updated = await api.put<Project>(`/projects/${projectId}`, { status: newStatus });
+      const existingProject = projects.find(p => p.id === projectId);
+      if (
+        existingProject &&
+        (existingProject.status === 'Closed Won' ||
+          existingProject.status === 'Incoming Project' ||
+          existingProject.status === 'Accepted' ||
+          existingProject.status === 'Completed') &&
+        newStatus !== 'Closed Won'
+      ) {
+        setErrorMessage('Status cannot be changed once a project is marked as Closed Won.');
+        return false;
+      }
+
+      const statusToSend = newStatus === 'Closed Won' ? 'Incoming Project' : newStatus;
+      const sourceToSend = newStatus === 'Closed Won' ? 'sales_won' : (existingProject?.source === 'sales_won' ? 'sales_won' : 'sales');
+      const updated = await api.put<Project>(`/projects/${projectId}`, { status: statusToSend, source: sourceToSend });
       const dynamicUpdated = {
         ...updated,
-        status: newStatus,
+        status: normalizeSalesStatus(newStatus, sourceToSend),
       };
       setProjects(prev => prev.map(p => (p.id === projectId ? dynamicUpdated : p)));
       if (newStatus === 'Closed Won' || newStatus === 'Accepted') {
-        setSuccessMessage(`Project "${updated.project_name}" marked as Closed Won and handed over to Projects page.`);
+        setSuccessMessage(null);
       } else {
         setSuccessMessage(`Project status updated to ${newStatus}.`);
       }
       return true;
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to update project status');
+      return false;
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const deleteSalesProject = async (projectId: number): Promise<boolean> => {
+    setActionLoading(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    try {
+      const existingProject = projects.find(p => p.id === projectId);
+      if (existingProject && existingProject.status !== 'Draft') {
+        setErrorMessage('Only draft projects can be deleted from the sales portal.');
+        return false;
+      }
+
+      await api.delete(`/projects/${projectId}`);
+      setProjects(prev => prev.filter(p => p.id !== projectId));
+      setSuccessMessage('Project deleted successfully.');
+      return true;
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to delete project');
       return false;
     } finally {
       setActionLoading(false);
@@ -273,5 +346,6 @@ export function useSalesController() {
     createSalesProject,
     updateSalesProjectInfo,
     updateSalesProjectStatus,
+    deleteSalesProject,
   };
 }

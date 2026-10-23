@@ -18,6 +18,7 @@ import {
   SlidersHorizontal,
   RotateCcw,
   Ban,
+  Trash2,
   Clock,
 } from 'lucide-react';
 import {
@@ -76,12 +77,41 @@ export const SalesView: React.FC = () => {
     setIsCreateModalOpen,
     createSalesProject,
     updateSalesProjectStatus,
+    deleteSalesProject,
   } = useSalesController();
 
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
   const [statusModalProject, setStatusModalProject] = useState<Project | null>(null);
   const [statusModalValue, setStatusModalValue] = useState<ProjectStatus>('Draft');
+
+  // Delete Confirmation State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+
+  const handleOpenDeleteModal = (proj: Project) => {
+    if (proj.status !== 'Draft') {
+      setErrorMessage('Only draft projects can be deleted from the sales portal.');
+      return;
+    }
+    setProjectToDelete(proj);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!projectToDelete) return;
+    if (projectToDelete.status !== 'Draft') {
+      setErrorMessage('Only draft projects can be deleted from the sales portal.');
+      setIsDeleteModalOpen(false);
+      setProjectToDelete(null);
+      return;
+    }
+    const success = await deleteSalesProject(projectToDelete.id);
+    if (success) {
+      setIsDeleteModalOpen(false);
+      setProjectToDelete(null);
+    }
+  };
 
   // Manage Dropdown Menu State
   const [openMenuProjectId, setOpenMenuProjectId] = useState<number | null>(null);
@@ -186,12 +216,20 @@ export const SalesView: React.FC = () => {
 
   const handleOpenStatusModal = (project: Project, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    if (project.status === 'Closed Won') {
+      setErrorMessage('Status cannot be changed once marked as Closed Won.');
+      return;
+    }
     setStatusModalProject(project);
     setStatusModalValue(project.status as ProjectStatus);
   };
 
   const handleSaveStatusModal = async () => {
     if (!statusModalProject) return;
+    if (statusModalProject.status === 'Closed Won' && statusModalValue !== 'Closed Won') {
+      setErrorMessage('Status cannot be changed once marked as Closed Won.');
+      return;
+    }
     const success = await updateSalesProjectStatus(statusModalProject.id, statusModalValue);
     if (success) {
       setStatusModalProject(null);
@@ -267,56 +305,8 @@ export const SalesView: React.FC = () => {
 
       {/* Global Alerts / Messages */}
       {errorMessage && (
-        <div
-          style={{
-            padding: '10px 14px',
-            backgroundColor: '#fef2f2',
-            border: '1px solid #fecaca',
-            color: '#b91c1c',
-            borderRadius: 'var(--erp-radius)',
-            fontSize: '13px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <AlertCircle size={15} />
-            <span>{errorMessage}</span>
-          </div>
-          <button
-            onClick={() => setErrorMessage(null)}
-            style={{ background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer', fontWeight: 'bold' }}
-          >
-            ×
-          </button>
-        </div>
-      )}
-
-      {successMessage && (
-        <div
-          style={{
-            padding: '10px 14px',
-            backgroundColor: '#f0fdf4',
-            border: '1px solid #bbf7d0',
-            color: '#15803d',
-            borderRadius: 'var(--erp-radius)',
-            fontSize: '13px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <CheckCircle2 size={15} />
-            <span>{successMessage}</span>
-          </div>
-          <button
-            onClick={() => setSuccessMessage(null)}
-            style={{ background: 'none', border: 'none', color: '#15803d', cursor: 'pointer', fontWeight: 'bold' }}
-          >
-            ×
-          </button>
+        <div style={{ color: 'var(--erp-text-error)', fontSize: '12.5px', padding: '0 4px' }}>
+          {errorMessage}
         </div>
       )}
 
@@ -464,74 +454,93 @@ export const SalesView: React.FC = () => {
                                 <span>Edit</span>
                               </button>
 
-                              <button
-                                type="button"
-                                className="erp-dropdown-item"
-                                onClick={() => {
-                                  setOpenMenuProjectId(null);
-                                  handleOpenStatusModal(project);
-                                }}
-                              >
-                                <SlidersHorizontal size={13} />
-                                <span>Change Status</span>
-                              </button>
-
-                              <div className="erp-dropdown-divider" />
-
                               {project.status !== 'Closed Won' && (
-                                <button
-                                  type="button"
-                                  className="erp-dropdown-item"
-                                  style={{ color: '#047857' }}
-                                  onClick={async () => {
-                                    setOpenMenuProjectId(null);
-                                    await updateSalesProjectStatus(project.id, 'Closed Won');
-                                  }}
-                                >
-                                  <CheckCircle2 size={13} />
-                                  <span>Mark Closed Won</span>
-                                </button>
+                                <>
+                                  <button
+                                    type="button"
+                                    className="erp-dropdown-item"
+                                    onClick={() => {
+                                      setOpenMenuProjectId(null);
+                                      handleOpenStatusModal(project);
+                                    }}
+                                  >
+                                    <SlidersHorizontal size={13} />
+                                    <span>Change Status</span>
+                                  </button>
+
+                                  <div className="erp-dropdown-divider" />
+
+                                  <button
+                                    type="button"
+                                    className="erp-dropdown-item"
+                                    style={{ color: '#047857' }}
+                                    onClick={async () => {
+                                      setOpenMenuProjectId(null);
+                                      await updateSalesProjectStatus(project.id, 'Closed Won');
+                                    }}
+                                  >
+                                    <CheckCircle2 size={13} />
+                                    <span>Mark Closed Won</span>
+                                  </button>
+
+                                  {project.status !== 'In Progress' && (
+                                    <button
+                                      type="button"
+                                      className="erp-dropdown-item"
+                                      style={{ color: '#d97706' }}
+                                      onClick={async () => {
+                                        setOpenMenuProjectId(null);
+                                        await updateSalesProjectStatus(project.id, 'In Progress');
+                                      }}
+                                    >
+                                      <Clock size={13} />
+                                      <span>Mark In Progress</span>
+                                    </button>
+                                  )}
+
+                                  {project.status !== 'Draft' && (
+                                    <button
+                                      type="button"
+                                      className="erp-dropdown-item"
+                                      onClick={async () => {
+                                        setOpenMenuProjectId(null);
+                                        await updateSalesProjectStatus(project.id, 'Draft');
+                                      }}
+                                    >
+                                      <RotateCcw size={13} />
+                                      <span>Mark as Draft</span>
+                                    </button>
+                                  )}
+
+                                  {project.status !== 'Closed Lost' && (
+                                    <button
+                                      type="button"
+                                      className="erp-dropdown-item danger"
+                                      onClick={async () => {
+                                        setOpenMenuProjectId(null);
+                                        await updateSalesProjectStatus(project.id, 'Closed Lost');
+                                      }}
+                                    >
+                                      <Ban size={13} />
+                                      <span>Mark Closed Lost</span>
+                                    </button>
+                                  )}
+
+                                  <div className="erp-dropdown-divider" />
+                                </>
                               )}
 
-                              {project.status !== 'In Progress' && (
-                                <button
-                                  type="button"
-                                  className="erp-dropdown-item"
-                                  onClick={async () => {
-                                    setOpenMenuProjectId(null);
-                                    await updateSalesProjectStatus(project.id, 'In Progress');
-                                  }}
-                                >
-                                  <Clock size={13} />
-                                  <span>Mark In Progress</span>
-                                </button>
-                              )}
-
-                              {project.status !== 'Draft' && (
-                                <button
-                                  type="button"
-                                  className="erp-dropdown-item"
-                                  onClick={async () => {
-                                    setOpenMenuProjectId(null);
-                                    await updateSalesProjectStatus(project.id, 'Draft');
-                                  }}
-                                >
-                                  <RotateCcw size={13} />
-                                  <span>Mark as Draft</span>
-                                </button>
-                              )}
-
-                              {project.status !== 'Closed Lost' && (
+                              {project.status === 'Draft' && (
                                 <button
                                   type="button"
                                   className="erp-dropdown-item danger"
-                                  onClick={async () => {
+                                  onClick={() => {
                                     setOpenMenuProjectId(null);
-                                    await updateSalesProjectStatus(project.id, 'Closed Lost');
+                                    handleOpenDeleteModal(project);
                                   }}
                                 >
-                                  <Ban size={13} />
-                                  <span>Mark Closed Lost</span>
+                                  <Trash2 size={13} />
+                                  <span>Delete Project</span>
                                 </button>
                               )}
                             </div>
@@ -683,74 +692,93 @@ export const SalesView: React.FC = () => {
                                 <span>Edit</span>
                               </button>
 
-                              <button
-                                type="button"
-                                className="erp-dropdown-item"
-                                onClick={() => {
-                                  setOpenMenuProjectId(null);
-                                  handleOpenStatusModal(project);
-                                }}
-                              >
-                                <SlidersHorizontal size={13} />
-                                <span>Change Status</span>
-                              </button>
-
-                              <div className="erp-dropdown-divider" />
-
                               {project.status !== 'Closed Won' && (
-                                <button
-                                  type="button"
-                                  className="erp-dropdown-item"
-                                  style={{ color: '#047857' }}
-                                  onClick={async () => {
-                                    setOpenMenuProjectId(null);
-                                    await updateSalesProjectStatus(project.id, 'Closed Won');
-                                  }}
-                                >
-                                  <CheckCircle2 size={13} />
-                                  <span>Mark Closed Won</span>
-                                </button>
+                                <>
+                                  <button
+                                    type="button"
+                                    className="erp-dropdown-item"
+                                    onClick={() => {
+                                      setOpenMenuProjectId(null);
+                                      handleOpenStatusModal(project);
+                                    }}
+                                  >
+                                    <SlidersHorizontal size={13} />
+                                    <span>Change Status</span>
+                                  </button>
+
+                                  <div className="erp-dropdown-divider" />
+
+                                  <button
+                                    type="button"
+                                    className="erp-dropdown-item"
+                                    style={{ color: '#047857' }}
+                                    onClick={async () => {
+                                      setOpenMenuProjectId(null);
+                                      await updateSalesProjectStatus(project.id, 'Closed Won');
+                                    }}
+                                  >
+                                    <CheckCircle2 size={13} />
+                                    <span>Mark Closed Won</span>
+                                  </button>
+
+                                  {project.status !== 'In Progress' && (
+                                    <button
+                                      type="button"
+                                      className="erp-dropdown-item"
+                                      style={{ color: '#d97706' }}
+                                      onClick={async () => {
+                                        setOpenMenuProjectId(null);
+                                        await updateSalesProjectStatus(project.id, 'In Progress');
+                                      }}
+                                    >
+                                      <Clock size={13} />
+                                      <span>Mark In Progress</span>
+                                    </button>
+                                  )}
+
+                                  {project.status !== 'Draft' && (
+                                    <button
+                                      type="button"
+                                      className="erp-dropdown-item"
+                                      onClick={async () => {
+                                        setOpenMenuProjectId(null);
+                                        await updateSalesProjectStatus(project.id, 'Draft');
+                                      }}
+                                    >
+                                      <RotateCcw size={13} />
+                                      <span>Mark as Draft</span>
+                                    </button>
+                                  )}
+
+                                  {project.status !== 'Closed Lost' && (
+                                    <button
+                                      type="button"
+                                      className="erp-dropdown-item danger"
+                                      onClick={async () => {
+                                        setOpenMenuProjectId(null);
+                                        await updateSalesProjectStatus(project.id, 'Closed Lost');
+                                      }}
+                                    >
+                                      <Ban size={13} />
+                                      <span>Mark Closed Lost</span>
+                                    </button>
+                                  )}
+
+                                  <div className="erp-dropdown-divider" />
+                                </>
                               )}
 
-                              {project.status !== 'In Progress' && (
-                                <button
-                                  type="button"
-                                  className="erp-dropdown-item"
-                                  onClick={async () => {
-                                    setOpenMenuProjectId(null);
-                                    await updateSalesProjectStatus(project.id, 'In Progress');
-                                  }}
-                                >
-                                  <Clock size={13} />
-                                  <span>Mark In Progress</span>
-                                </button>
-                              )}
-
-                              {project.status !== 'Draft' && (
-                                <button
-                                  type="button"
-                                  className="erp-dropdown-item"
-                                  onClick={async () => {
-                                    setOpenMenuProjectId(null);
-                                    await updateSalesProjectStatus(project.id, 'Draft');
-                                  }}
-                                >
-                                  <RotateCcw size={13} />
-                                  <span>Mark as Draft</span>
-                                </button>
-                              )}
-
-                              {project.status !== 'Closed Lost' && (
+                              {project.status === 'Draft' && (
                                 <button
                                   type="button"
                                   className="erp-dropdown-item danger"
-                                  onClick={async () => {
+                                  onClick={() => {
                                     setOpenMenuProjectId(null);
-                                    await updateSalesProjectStatus(project.id, 'Closed Lost');
+                                    handleOpenDeleteModal(project);
                                   }}
                                 >
-                                  <Ban size={13} />
-                                  <span>Mark Closed Lost</span>
+                                  <Trash2 size={13} />
+                                  <span>Delete Project</span>
                                 </button>
                               )}
                             </div>
@@ -923,6 +951,7 @@ export const SalesView: React.FC = () => {
                 <select
                   className="erp-select"
                   value={statusModalValue}
+                  disabled={statusModalProject?.status === 'Closed Won'}
                   onChange={e => setStatusModalValue(e.target.value as ProjectStatus)}
                 >
                   <option value="Draft">Draft</option>
@@ -930,9 +959,14 @@ export const SalesView: React.FC = () => {
                   <option value="Closed Won">Closed Won</option>
                   <option value="Closed Lost">Closed Lost</option>
                 </select>
+                {statusModalProject?.status === 'Closed Won' && (
+                  <span style={{ fontSize: '11.5px', color: 'var(--erp-text-muted)', marginTop: '4px', display: 'block' }}>
+                    Status cannot be changed once marked as Closed Won.
+                  </span>
+                )}
               </div>
 
-              {statusModalValue === 'Closed Won' && (
+              {statusModalValue === 'Closed Won' && statusModalProject?.status !== 'Closed Won' && (
                 <div
                   style={{
                     marginTop: '12px',
@@ -968,13 +1002,53 @@ export const SalesView: React.FC = () => {
                 type="button"
                 className="erp-btn erp-btn-primary"
                 onClick={handleSaveStatusModal}
-                disabled={actionLoading}
+                disabled={actionLoading || statusModalProject?.status === 'Closed Won'}
               >
                 {actionLoading ? 'Updating...' : 'Save Status'}
               </button>
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Delete Project Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteModalOpen && !!projectToDelete}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setProjectToDelete(null);
+        }}
+        title="Delete Project"
+        maxWidth="460px"
+      >
+        <div className="erp-modal-body">
+          <p style={{ fontSize: '13px', color: 'var(--erp-text-main)', margin: '0 0 10px 0', lineHeight: 1.5 }}>
+            Are you sure you want to delete project <strong>{projectToDelete?.project_number}</strong> ({projectToDelete?.project_name})?
+          </p>
+          <p style={{ fontSize: '12px', color: 'var(--erp-text-muted)', margin: 0, lineHeight: 1.5 }}>
+            This action cannot be undone. All associated information for this project will be removed.
+          </p>
+        </div>
+        <div className="erp-modal-footer">
+          <button
+            type="button"
+            className="erp-btn erp-btn-secondary"
+            onClick={() => {
+              setIsDeleteModalOpen(false);
+              setProjectToDelete(null);
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="erp-btn erp-btn-danger"
+            disabled={actionLoading}
+            onClick={handleDeleteConfirm}
+          >
+            {actionLoading ? 'Deleting...' : 'Delete Project'}
+          </button>
+        </div>
       </Modal>
     </div>
   );

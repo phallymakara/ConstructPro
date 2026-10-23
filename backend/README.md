@@ -50,12 +50,14 @@ pip install -r pyproject.toml
 Using uv (recommended - includes automatic port conflict detection):
 
 ```bash
-uv run python main.py
+uv run ConstructPro
 ```
 
-Or using uvicorn directly:
+Or using python / uvicorn directly:
 
 ```bash
+uv run python main.py
+# or
 uv run uvicorn app.main:app --reload --port 8001
 ```
 

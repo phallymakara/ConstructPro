@@ -11,6 +11,7 @@ export const getStatusFallbackProgress = (status: ProjectStatus | string): numbe
     case 'Approved': return 25;
     case 'Closed Won': return 100;
     case 'Closed Lost': return 0;
+    case 'Incoming Project': return 0;
     case 'Starting': return 0;
     case 'In Progress':
     case 'Inprogress': return 35;
@@ -131,8 +132,33 @@ export const calculateDynamicProjectStatus = (
   tasks?: ProjectTask[]
 ): ProjectStatus => {
   const currentStatus = project?.status;
+  if (!currentStatus) return 'Starting';
+
   if (currentStatus === 'Cancelled' || currentStatus === 'Canceled') {
     return 'Cancelled';
+  }
+
+  if (currentStatus === 'Completed') {
+    return 'Completed';
+  }
+
+  // Preserve explicit sales stages and handover statuses without dynamic override
+  if ((project as any)?.source === 'sales' && currentStatus === 'In Progress') {
+    return 'In Progress';
+  }
+
+  const FIXED_STAGES: (ProjectStatus | string)[] = [
+    'Incoming Project',
+    'Closed Won',
+    'Closed Lost',
+    'Draft',
+    'Quotation',
+    'Negotiation',
+    'Inquiry',
+    'Discussion',
+  ];
+  if (FIXED_STAGES.includes(currentStatus)) {
+    return currentStatus as ProjectStatus;
   }
 
   const projectTasks = tasks !== undefined
@@ -159,34 +185,28 @@ export const calculateDynamicProjectStatus = (
     }
   }
 
-  // Check if tasks created or progress made
-  if (projectTasks && projectTasks.length > 0) {
-    return 'In Progress';
-  }
+  // Check if progress is actively being made on workflow tasks
   if (metrics.hasTasks && metrics.percent > 0) {
     return 'In Progress';
   }
 
-  // Preserve explicit sales or operational status if set
+  // Preserve explicit operational status if set
   const PRESERVE_STATUSES = [
-    'Inquiry',
-    'Discussion',
-    'Quotation',
-    'Negotiation',
     'Accepted',
-    'Closed Won',
-    'Closed Lost',
-    'Draft',
     'Approved',
+    'Starting',
+    'In Progress',
+    'Completed',
+    'Cancelled',
     'Material Preparation',
     'Production',
     'Ready for Delivery',
     'Installation',
   ];
-  if (currentStatus && PRESERVE_STATUSES.includes(currentStatus)) {
+  if (PRESERVE_STATUSES.includes(currentStatus)) {
     return currentStatus as ProjectStatus;
   }
 
-  return 'Starting';
+  return (currentStatus as ProjectStatus) || 'Starting';
 };
 

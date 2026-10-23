@@ -17,7 +17,9 @@ import {
   Ban,
   RotateCcw,
   LayoutGrid,
-  List
+  List,
+  Clock,
+  CheckCircle2,
 } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useProjectsController } from '../../controllers/useProjectsController';
@@ -29,6 +31,7 @@ import { exportProjectToPDF, exportProjectToWord } from '../../utils/exportTempl
 import { getProjectCalculatedProgress } from '../../utils/taskProgress';
 
 const STATUS_OPTIONS: ProjectStatus[] = [
+  'Incoming Project',
   'Accepted',
   'Starting',
   'In Progress',
@@ -95,14 +98,14 @@ const checkProjectExportValidation = (proj: Project): ExportValidationResult => 
     if (proj.assigned_manager && proj.assigned_manager.trim() !== '' && proj.assigned_manager !== 'Not assigned') {
       personnel.push({
         name: proj.assigned_manager.trim(),
-        role: 'Lead Engineer / Project Manager',
+        role: 'Project Manager',
         scope: 'Project coordination, technical specifications & site liaison'
       });
     }
     if (proj.architect && proj.architect.trim() !== '' && proj.architect !== 'Not assigned') {
       personnel.push({
         name: proj.architect.trim(),
-        role: 'Architect / Designer',
+        role: 'Architecture',
         scope: 'Architectural specifications & opening dimensions'
       });
     }
@@ -111,7 +114,7 @@ const checkProjectExportValidation = (proj: Project): ExportValidationResult => 
       splitWorkers.forEach(w => {
         personnel.push({
           name: w,
-          role: 'Workers / Installation Crew',
+          role: 'Worker',
           scope: 'Aluminum fabrication, frame assembly, cutting & on-site glazing'
         });
       });
@@ -199,7 +202,6 @@ export const ProjectsView: React.FC = () => {
     setIsShortagePOModalOpen,
     createProject,
     updateProject,
-    deleteProject,
     updateStatus,
     addItemToProject,
     deleteItem,
@@ -223,17 +225,32 @@ export const ProjectsView: React.FC = () => {
     location: string;
     start_date: string;
     deadline_date: string;
+    status: ProjectStatus;
   }>({
     project_name: '',
     location: '',
     start_date: '',
     deadline_date: '',
+    status: 'Starting',
   });
   const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({});
 
-  // Delete Project Confirmation Modal State
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
-  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+  // Status Change Modal State
+  const [statusModalProject, setStatusModalProject] = useState<Project | null>(null);
+  const [statusModalValue, setStatusModalValue] = useState<ProjectStatus>('In Progress');
+
+  const handleOpenStatusModal = (proj: Project) => {
+    setStatusModalProject(proj);
+    setStatusModalValue(proj.status);
+  };
+
+  const handleSaveStatusModal = async () => {
+    if (!statusModalProject) return;
+    const success = await updateStatus(statusModalProject.id, statusModalValue);
+    if (success) {
+      setStatusModalProject(null);
+    }
+  };
 
   // Close popup dropdown on outside click
   useEffect(() => {
@@ -291,6 +308,7 @@ export const ProjectsView: React.FC = () => {
       location: proj.location || '',
       start_date: formatDateForInput(proj.start_date),
       deadline_date: formatDateForInput(proj.deadline_date),
+      status: proj.status || 'Starting',
     });
     setEditFormErrors({});
     setIsEditModalOpen(true);
@@ -321,6 +339,7 @@ export const ProjectsView: React.FC = () => {
       location: editFormData.location.trim(),
       start_date: editFormData.start_date || undefined,
       deadline_date: editFormData.deadline_date || undefined,
+      status: editFormData.status,
     });
 
     if (success) {
@@ -329,19 +348,6 @@ export const ProjectsView: React.FC = () => {
     }
   };
 
-  const handleOpenDeleteModal = (proj: Project) => {
-    setProjectToDelete(proj);
-    setIsDeleteModalOpen(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!projectToDelete) return;
-    const success = await deleteProject(projectToDelete.id);
-    if (success) {
-      setIsDeleteModalOpen(false);
-      setProjectToDelete(null);
-    }
-  };
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -624,19 +630,48 @@ export const ProjectsView: React.FC = () => {
                                 <span>Project Workspace</span>
                               </button>
                               <div className="erp-dropdown-divider" />
-                              {proj.status === 'Cancelled' ? (
+                              <button
+                                type="button"
+                                className="erp-dropdown-item"
+                                onClick={() => {
+                                  setOpenMenuProjectId(null);
+                                  handleOpenStatusModal(proj);
+                                }}
+                              >
+                                <SlidersHorizontal size={13} />
+                                <span>Change Status</span>
+                              </button>
+
+                              <div className="erp-dropdown-divider" />
+                              {proj.status !== 'In Progress' && proj.status !== 'Completed' && proj.status !== 'Cancelled' && (
                                 <button
                                   type="button"
                                   className="erp-dropdown-item"
+                                  style={{ color: '#d97706' }}
                                   onClick={async () => {
                                     setOpenMenuProjectId(null);
-                                    await updateStatus(proj.id, 'Starting');
+                                    await updateStatus(proj.id, 'In Progress');
                                   }}
                                 >
-                                  <RotateCcw size={13} />
-                                  <span>Reactivate Project</span>
+                                  <Clock size={13} />
+                                  <span>Mark In Progress</span>
                                 </button>
-                              ) : (
+                              )}
+                              {proj.status !== 'Completed' && proj.status !== 'Cancelled' && (
+                                <button
+                                  type="button"
+                                  className="erp-dropdown-item"
+                                  style={{ color: '#047857' }}
+                                  onClick={async () => {
+                                    setOpenMenuProjectId(null);
+                                    await updateStatus(proj.id, 'Completed');
+                                  }}
+                                >
+                                  <CheckCircle2 size={13} />
+                                  <span>Mark Completed</span>
+                                </button>
+                              )}
+                              {proj.status !== 'Cancelled' ? (
                                 <button
                                   type="button"
                                   className="erp-dropdown-item danger"
@@ -647,6 +682,31 @@ export const ProjectsView: React.FC = () => {
                                 >
                                   <Ban size={13} />
                                   <span>Cancel Project</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="erp-dropdown-item"
+                                  onClick={async () => {
+                                    setOpenMenuProjectId(null);
+                                    await updateStatus(proj.id, 'In Progress');
+                                  }}
+                                >
+                                  <RotateCcw size={13} />
+                                  <span>Reactivate Project</span>
+                                </button>
+                              )}
+                              {proj.status === 'Completed' && (
+                                <button
+                                  type="button"
+                                  className="erp-dropdown-item"
+                                  onClick={async () => {
+                                    setOpenMenuProjectId(null);
+                                    await updateStatus(proj.id, 'In Progress');
+                                  }}
+                                >
+                                  <RotateCcw size={13} />
+                                  <span>Reopen as In Progress</span>
                                 </button>
                               )}
                               <div className="erp-dropdown-divider" />
@@ -696,18 +756,7 @@ export const ProjectsView: React.FC = () => {
                                 <FileDown size={13} />
                                 <span>Export as Word</span>
                               </button>
-                              <div className="erp-dropdown-divider" />
-                              <button
-                                type="button"
-                                className="erp-dropdown-item danger"
-                                onClick={() => {
-                                  setOpenMenuProjectId(null);
-                                  handleOpenDeleteModal(proj);
-                                }}
-                              >
-                                <Trash2 size={13} />
-                                <span>Delete</span>
-                              </button>
+
                             </div>
                           )}
                         </div>
@@ -858,19 +907,48 @@ export const ProjectsView: React.FC = () => {
                                 <span>Project Workspace</span>
                               </button>
                               <div className="erp-dropdown-divider" />
-                              {proj.status === 'Cancelled' ? (
+                              <button
+                                type="button"
+                                className="erp-dropdown-item"
+                                onClick={() => {
+                                  setOpenMenuProjectId(null);
+                                  handleOpenStatusModal(proj);
+                                }}
+                              >
+                                <SlidersHorizontal size={13} />
+                                <span>Change Status</span>
+                              </button>
+
+                              <div className="erp-dropdown-divider" />
+                              {proj.status !== 'In Progress' && proj.status !== 'Completed' && proj.status !== 'Cancelled' && (
                                 <button
                                   type="button"
                                   className="erp-dropdown-item"
+                                  style={{ color: '#d97706' }}
                                   onClick={async () => {
                                     setOpenMenuProjectId(null);
-                                    await updateStatus(proj.id, 'Starting');
+                                    await updateStatus(proj.id, 'In Progress');
                                   }}
                                 >
-                                  <RotateCcw size={13} />
-                                  <span>Reactivate Project</span>
+                                  <Clock size={13} />
+                                  <span>Mark In Progress</span>
                                 </button>
-                              ) : (
+                              )}
+                              {proj.status !== 'Completed' && proj.status !== 'Cancelled' && (
+                                <button
+                                  type="button"
+                                  className="erp-dropdown-item"
+                                  style={{ color: '#047857' }}
+                                  onClick={async () => {
+                                    setOpenMenuProjectId(null);
+                                    await updateStatus(proj.id, 'Completed');
+                                  }}
+                                >
+                                  <CheckCircle2 size={13} />
+                                  <span>Mark Completed</span>
+                                </button>
+                              )}
+                              {proj.status !== 'Cancelled' ? (
                                 <button
                                   type="button"
                                   className="erp-dropdown-item danger"
@@ -881,6 +959,31 @@ export const ProjectsView: React.FC = () => {
                                 >
                                   <Ban size={13} />
                                   <span>Cancel Project</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="erp-dropdown-item"
+                                  onClick={async () => {
+                                    setOpenMenuProjectId(null);
+                                    await updateStatus(proj.id, 'In Progress');
+                                  }}
+                                >
+                                  <RotateCcw size={13} />
+                                  <span>Reactivate Project</span>
+                                </button>
+                              )}
+                              {proj.status === 'Completed' && (
+                                <button
+                                  type="button"
+                                  className="erp-dropdown-item"
+                                  onClick={async () => {
+                                    setOpenMenuProjectId(null);
+                                    await updateStatus(proj.id, 'In Progress');
+                                  }}
+                                >
+                                  <RotateCcw size={13} />
+                                  <span>Reopen as In Progress</span>
                                 </button>
                               )}
                               <div className="erp-dropdown-divider" />
@@ -930,18 +1033,7 @@ export const ProjectsView: React.FC = () => {
                                 <FileDown size={13} />
                                 <span>Export as Word</span>
                               </button>
-                              <div className="erp-dropdown-divider" />
-                              <button
-                                type="button"
-                                className="erp-dropdown-item danger"
-                                onClick={() => {
-                                  setOpenMenuProjectId(null);
-                                  handleOpenDeleteModal(proj);
-                                }}
-                              >
-                                <Trash2 size={13} />
-                                <span>Delete</span>
-                              </button>
+
                             </div>
                           )}
                         </div>
@@ -1650,6 +1742,22 @@ export const ProjectsView: React.FC = () => {
               </div>
             </div>
 
+            <div className="erp-form-group">
+              <label className="erp-form-label">Status</label>
+              <select
+                className="erp-select"
+                value={editFormData.status || 'Starting'}
+                onChange={e => setEditFormData({ ...editFormData, status: e.target.value as ProjectStatus })}
+              >
+                <option value="Incoming Project">Incoming Project</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
+                <option value="Cancelled">Cancelled</option>
+                <option value="Starting">Starting</option>
+                <option value="Accepted">Accepted</option>
+              </select>
+            </div>
+
           </div>
 
           <div className="erp-modal-footer">
@@ -1674,44 +1782,108 @@ export const ProjectsView: React.FC = () => {
         </form>
       </Modal>
 
-      {/* Modal: Delete Project Confirmation */}
+      {/* Change Status Modal */}
       <Modal
-        isOpen={isDeleteModalOpen && !!projectToDelete}
-        onClose={() => {
-          setIsDeleteModalOpen(false);
-          setProjectToDelete(null);
-        }}
-        title="Delete Project"
-        maxWidth="460px"
+        isOpen={!!statusModalProject}
+        onClose={() => setStatusModalProject(null)}
+        title="Change Project Status"
+        maxWidth="480px"
       >
-        <div className="erp-modal-body">
-          <p style={{ fontSize: '13px', color: 'var(--erp-text-main)', margin: '0 0 10px 0', lineHeight: 1.5 }}>
-            Are you sure you want to delete project <strong>{projectToDelete?.project_number}</strong> ({projectToDelete?.project_name})?
-          </p>
-          <p style={{ fontSize: '12px', color: 'var(--erp-text-muted)', margin: 0, lineHeight: 1.5 }}>
-            This action cannot be undone. All associated items, material requirements, and production movements for this project will be removed.
-          </p>
-        </div>
-        <div className="erp-modal-footer">
-          <button
-            type="button"
-            className="erp-btn erp-btn-secondary"
-            onClick={() => {
-              setIsDeleteModalOpen(false);
-              setProjectToDelete(null);
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="erp-btn erp-btn-danger"
-            disabled={actionLoading}
-            onClick={handleDeleteConfirm}
-          >
-            {actionLoading ? 'Deleting...' : 'Delete Project'}
-          </button>
-        </div>
+        {statusModalProject && (
+          <div>
+            <div className="erp-modal-body">
+              <div
+                style={{
+                  marginBottom: '16px',
+                  padding: '12px 14px',
+                  backgroundColor: 'var(--erp-surface-hover)',
+                  borderRadius: 'var(--erp-radius-sm)',
+                  border: '1px solid var(--erp-border)',
+                }}
+              >
+                <div style={{ fontWeight: 600, fontSize: '13.5px', color: 'var(--erp-text-main)' }}>
+                  {statusModalProject.project_name}
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--erp-text-muted)', marginTop: '2px' }}>
+                  {statusModalProject.project_number} • Customer: {statusModalProject.customer?.name || 'Walk-in / Direct Client'}
+                </div>
+                <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--erp-text-muted)' }}>Current Status:</span>
+                  <StatusBadge status={statusModalProject.status} />
+                </div>
+              </div>
+
+              <div className="erp-form-group">
+                <label className="erp-form-label">New Status *</label>
+                <select
+                  className="erp-select"
+                  value={statusModalValue}
+                  onChange={e => setStatusModalValue(e.target.value as ProjectStatus)}
+                >
+                  <option value="Incoming Project">Incoming Project</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Cancelled">Cancelled</option>
+                  <option value="Starting">Starting</option>
+                  <option value="Accepted">Accepted</option>
+                </select>
+              </div>
+
+              {statusModalValue === 'Cancelled' && (
+                <div
+                  style={{
+                    marginTop: '12px',
+                    padding: '10px 12px',
+                    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                    borderRadius: 'var(--erp-radius-sm)',
+                    fontSize: '12px',
+                    color: '#b91c1c',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  Marking as <strong>Cancelled</strong> will halt operations on this project.
+                </div>
+              )}
+
+              {statusModalValue === 'Completed' && (
+                <div
+                  style={{
+                    marginTop: '12px',
+                    padding: '10px 12px',
+                    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                    border: '1px solid rgba(16, 185, 129, 0.25)',
+                    borderRadius: 'var(--erp-radius-sm)',
+                    fontSize: '12px',
+                    color: '#047857',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  Marking as <strong>Completed</strong> signifies that site fabrication, installation, and inspection are done.
+                </div>
+              )}
+            </div>
+
+            <div className="erp-modal-footer">
+              <button
+                type="button"
+                className="erp-btn erp-btn-secondary"
+                onClick={() => setStatusModalProject(null)}
+                disabled={actionLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="erp-btn erp-btn-primary"
+                onClick={handleSaveStatusModal}
+                disabled={actionLoading}
+              >
+                {actionLoading ? 'Updating...' : 'Save Status'}
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

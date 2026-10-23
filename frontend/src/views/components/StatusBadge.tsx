@@ -31,6 +31,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, style, classNa
       badgeClass = 'erp-badge-emerald';
       break;
     case 'Starting':
+    case 'Incoming Project':
+    case 'Incoming':
       badgeClass = 'erp-badge-blue';
       break;
     case 'In Progress':

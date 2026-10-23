@@ -105,13 +105,14 @@ def _format_project(p: Project) -> dict:
 def get_projects(source: Optional[str] = None, db: Session = Depends(get_db)):
     query = db.query(Project)
     if source == "sales":
-        query = query.filter(Project.source == "sales")
+        query = query.filter(Project.source.in_(["sales", "sales_won"]))
     elif source == "project":
         from sqlalchemy import or_
         query = query.filter(
             or_(
                 Project.source == "project",
-                (Project.source == "sales") & (Project.status.in_(["Closed Won", "Accepted", "Completed"]))
+                Project.source == "sales_won",
+                (Project.source == "sales") & (Project.status.in_(["Closed Won", "Accepted", "Completed", "Incoming Project", "In Progress", "Cancelled", "Starting"]))
             )
         )
     elif source:
@@ -196,7 +197,25 @@ def update_project(project_id: int, payload: ProjectUpdate, db: Session = Depend
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    for key, val in payload.model_dump(exclude_unset=True).items():
+    update_dict = payload.model_dump(exclude_unset=True)
+
+    # Validation: Closed Won deals cannot have their status reverted back to Draft or Closed Lost
+    if "status" in update_dict:
+        new_status = update_dict["status"]
+        current_status = project.status.value if hasattr(project.status, "value") else str(project.status)
+        if project.source in ("sales_won",) or current_status in ("Closed Won", "Incoming Project", "Accepted", "Completed"):
+            if new_status in ("Draft", "Closed Lost"):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Status cannot be changed back to Draft or Closed Lost once marked as Closed Won."
+                )
+
+    # Automatically set sales_won source when sales project reaches won/incoming project status
+    if project.source in ("sales", "sales_won"):
+        if update_dict.get("status") in ("Incoming Project", "Closed Won") or project.status in ("Incoming Project", "Closed Won"):
+            update_dict["source"] = "sales_won"
+
+    for key, val in update_dict.items():
         setattr(project, key, val)
 
     db.commit()
@@ -408,6 +427,14 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+
+    current_status = project.status.value if hasattr(project.status, "value") else str(project.status)
+    if getattr(project, "source", None) in ("sales", "sales_won") and current_status != "Draft":
+        raise HTTPException(
+            status_code=400,
+            detail="Only draft projects can be deleted from the sales portal."
+        )
+
     db.delete(project)
     db.commit()
     return None

@@ -145,7 +145,7 @@ export const ProjectWorkflowView: React.FC = () => {
   const [isAssignPersonnelModalOpen, setIsAssignPersonnelModalOpen] = useState<boolean>(false);
   const [editingPersonnelId, setEditingPersonnelId] = useState<string | null>(null);
   const [personnelNameInput, setPersonnelNameInput] = useState('');
-  const [personnelRoleInput, setPersonnelRoleInput] = useState('Lead Engineer / Project Manager');
+  const [personnelRoleInput, setPersonnelRoleInput] = useState('Project Manager');
   const [personnelScopeInput, setPersonnelScopeInput] = useState('');
   const [personnelList, setPersonnelList] = useState<AssignedPersonnel[]>([]);
 
@@ -239,7 +239,7 @@ export const ProjectWorkflowView: React.FC = () => {
       list.push({
         id: 'manager',
         name: project.assigned_manager,
-        role: 'Lead Engineer / Project Manager',
+        role: 'Project Manager',
         scope: 'Project coordination, technical specifications & site liaison',
       });
     }
@@ -247,7 +247,7 @@ export const ProjectWorkflowView: React.FC = () => {
       list.push({
         id: 'architect',
         name: project.architect,
-        role: 'Architect / Designer',
+        role: 'Architecture',
         scope: 'Architectural specifications & opening dimensions',
       });
     }
@@ -257,7 +257,7 @@ export const ProjectWorkflowView: React.FC = () => {
         list.push({
           id: `worker_${idx}_${Date.now()}`,
           name: wName,
-          role: 'Workers / Installation Crew',
+          role: 'Worker',
           scope: 'Aluminum fabrication, frame assembly, cutting & on-site glazing',
         });
       });
@@ -739,7 +739,7 @@ export const ProjectWorkflowView: React.FC = () => {
     } else {
       setEditingPersonnelId(null);
       setPersonnelNameInput('');
-      setPersonnelRoleInput('Lead Engineer / Project Manager');
+      setPersonnelRoleInput('Project Manager');
       setPersonnelScopeInput('');
     }
     setIsAssignPersonnelModalOpen(true);
@@ -775,8 +775,8 @@ export const ProjectWorkflowView: React.FC = () => {
       localStorage.setItem(`project_personnel_${project.id}`, JSON.stringify(updatedList));
     } catch {}
 
-    const manager = updatedList.find(p => p.role.includes('Engineer') || p.role.includes('Manager'));
-    const architect = updatedList.find(p => p.role.includes('Architect') || p.role.includes('Designer'));
+    const manager = updatedList.find(p => p.role.includes('Engineer') || p.role.includes('Manage'));
+    const architect = updatedList.find(p => p.role.includes('Architect') || p.role.includes('Designer') || p.role.includes('Architecture'));
     const workers = updatedList
       .filter(p => p.role.includes('Worker') || p.role.includes('Crew'))
       .map(p => p.name.trim())
@@ -810,8 +810,8 @@ export const ProjectWorkflowView: React.FC = () => {
       localStorage.setItem(`project_personnel_${project.id}`, JSON.stringify(updatedList));
     } catch {}
 
-    const manager = updatedList.find(p => p.role.includes('Engineer') || p.role.includes('Manager'));
-    const architect = updatedList.find(p => p.role.includes('Architect') || p.role.includes('Designer'));
+    const manager = updatedList.find(p => p.role.includes('Engineer') || p.role.includes('Manage'));
+    const architect = updatedList.find(p => p.role.includes('Architect') || p.role.includes('Designer') || p.role.includes('Architecture'));
     const workers = updatedList
       .filter(p => p.role.includes('Worker') || p.role.includes('Crew'))
       .map(p => p.name.trim())
@@ -879,7 +879,7 @@ export const ProjectWorkflowView: React.FC = () => {
     if (editingMaterialId) {
       updated = materialsList.map(m =>
         String(m.id) === String(editingMaterialId)
-          ? { ...m, material_name: trimmedName, required_qty: qty, status: materialStatusInput }
+          ? { ...m, material_name: trimmedName, required_qty: qty, status: m.status || 'Ready' }
           : m
       );
     } else {
@@ -887,7 +887,7 @@ export const ProjectWorkflowView: React.FC = () => {
         id: Date.now().toString(),
         material_name: trimmedName,
         required_qty: qty,
-        status: materialStatusInput,
+        status: 'Ready',
       };
       updated = [...materialsList, newRequirement];
     }
@@ -1262,13 +1262,13 @@ export const ProjectWorkflowView: React.FC = () => {
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', fontSize: '14.5px' }}>
                   <span style={{ color: 'var(--erp-text-muted)', width: '165px', flexShrink: 0 }}>Project Manager:</span>
                   <span style={{ textAlign: 'left', fontWeight: 400 }}>
-                    {project.assigned_manager || personnelList.find(p => p.role.includes('Engineer') || p.role.includes('Manager'))?.name || '-'}
+                    {project.assigned_manager || personnelList.find(p => p.role.includes('Engineer') || p.role.includes('Manage'))?.name || '-'}
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', fontSize: '14.5px' }}>
                   <span style={{ color: 'var(--erp-text-muted)', width: '165px', flexShrink: 0 }}>Architect:</span>
                   <span style={{ textAlign: 'left', fontWeight: 400 }}>
-                    {project.architect || personnelList.find(p => p.role.includes('Architect') || p.role.includes('Designer'))?.name || '-'}
+                    {project.architect || personnelList.find(p => p.role.includes('Architect') || p.role.includes('Designer') || p.role.includes('Architecture'))?.name || '-'}
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', fontSize: '14.5px' }}>
@@ -1664,7 +1664,6 @@ export const ProjectWorkflowView: React.FC = () => {
                       <tr>
                         <th>Name</th>
                         <th>Qty</th>
-                        <th>Status</th>
                         <th style={{ textAlign: 'right' }}>Action</th>
                       </tr>
                     </thead>
@@ -1673,9 +1672,6 @@ export const ProjectWorkflowView: React.FC = () => {
                         <tr key={req.id}>
                           <td style={{ fontWeight: 400, fontSize: '14.5px' }}>{req.material_name}</td>
                           <td style={{ fontSize: '14px' }}>{req.required_qty}</td>
-                          <td>
-                            <StatusBadge status={req.status || 'Ready'} />
-                          </td>
                           <td style={{ textAlign: 'right' }}>
                             <div className="erp-dropdown-container">
                               <button
@@ -2341,12 +2337,9 @@ export const ProjectWorkflowView: React.FC = () => {
                 value={personnelRoleInput}
                 onChange={e => setPersonnelRoleInput(e.target.value)}
               >
-                <option value="Lead Engineer / Project Manager">Lead Engineer / Project Manager</option>
-                <option value="Architect / Designer">Architect / Designer</option>
-                <option value="Workers / Installation Crew">Workers / Installation Crew</option>
-                <option value="Salesperson">Salesperson</option>
-                <option value="Site Supervisor">Site Supervisor</option>
-                <option value="Quality Control Specialist">Quality Control Specialist</option>
+                <option value="Project Manager">Project Manager</option>
+                <option value="Architecture">Architecture</option>
+                <option value="Worker">Worker</option>
               </select>
             </div>
             <div className="erp-form-group">
@@ -2433,20 +2426,6 @@ export const ProjectWorkflowView: React.FC = () => {
               )}
             </div>
 
-            <div className="erp-form-group">
-              <label className="erp-form-label">Status</label>
-              <select
-                className="erp-select"
-                value={materialStatusInput}
-                onChange={e => setMaterialStatusInput(e.target.value)}
-              >
-                <option value="Ready">Ready</option>
-                <option value="Reserved">Reserved</option>
-                <option value="Material Preparation">Material Preparation</option>
-                <option value="Shortage">Shortage</option>
-                <option value="Completed">Completed</option>
-              </select>
-            </div>
           </div>
 
           <div className="erp-modal-footer">

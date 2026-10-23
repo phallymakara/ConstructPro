@@ -38,7 +38,7 @@ export function useProjectsController() {
       ]);
       // PM Projects Page receives projects created directly for operations or Closed Won from Sales
       const pmProjects = projData
-        .filter(p => (p.source || 'project') !== 'sales' || p.status === 'Closed Won' || p.status === 'Accepted' || p.status === 'Completed')
+        .filter(p => (p.source || 'project') !== 'sales' || p.source === 'sales_won' || p.status === 'Closed Won' || p.status === 'Accepted' || p.status === 'Completed' || p.status === 'Incoming Project' || p.status === 'In Progress' || p.status === 'Cancelled')
         .map(p => ({
           ...p,
           status: calculateDynamicProjectStatus(p),
@@ -114,7 +114,7 @@ export function useProjectsController() {
       const updated = await api.put<Project>(`/projects/${projectId}`, data);
       const dynUpdated = {
         ...updated,
-        status: calculateDynamicProjectStatus(updated),
+        status: data.status || calculateDynamicProjectStatus(updated),
       };
       setProjects(prev => prev.map(p => p.id === projectId ? dynUpdated : p));
       if (selectedProject?.id === projectId) setSelectedProject(dynUpdated);

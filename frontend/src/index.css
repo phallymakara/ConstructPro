@@ -1,8 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&display=swap');
 
+@font-face {
+  font-family: 'Calibri Bold';
+  src: local('Calibri Bold'), local('Calibri-Bold');
+  font-weight: bold;
+}
+
 /* ConstructPro Theme - Clean Enterprise Design System */
 :root {
-  --erp-font: 'Kantumruy Pro', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --erp-font: 'Calibri Bold', Calibri, Carlito, 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --erp-mono-font: 'JetBrains Mono', SFMono-Regular, Consolas, monospace;
 
   /* Radii - Modern rounded corners */
@@ -75,14 +81,14 @@
   --badge-rose-border: #fecdd3;
 
   /* Typography Scale */
-  --erp-text-xs: 11.5px;
-  --erp-text-sm: 12.5px;
-  --erp-text-base: 13.5px;
-  --erp-text-md: 14px;
-  --erp-text-title: 15px;
-  --erp-text-header: 16px;
-  --erp-text-lg: 18px;
-  --erp-text-xl: 22px;
+  --erp-text-xs: 12.5px;
+  --erp-text-sm: 13.5px;
+  --erp-text-base: 14.5px;
+  --erp-text-md: 15px;
+  --erp-text-title: 16px;
+  --erp-text-header: 17.5px;
+  --erp-text-lg: 19.5px;
+  --erp-text-xl: 24px;
 }
 
 /* ==========================================================================
@@ -203,7 +209,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   line-height: 1.5;
-  font-size: 14px;
+  font-size: 15px;
   letter-spacing: -0.01em;
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
 }
@@ -263,7 +269,7 @@ body {
 }
 
 .erp-brand-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: #f8fafc;
   letter-spacing: 0.2px;
@@ -272,7 +278,7 @@ body {
 
 .erp-nav-section-label {
   padding: 16px 16px 6px;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.8px;
@@ -297,7 +303,7 @@ body {
   border-radius: var(--erp-radius);
   color: var(--erp-sidebar-text);
   text-decoration: none;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   cursor: pointer;
   border: 1px solid transparent;
@@ -366,7 +372,7 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13.5px;
+  font-size: 14.5px;
   color: var(--erp-text-muted);
 }
 
@@ -388,7 +394,7 @@ body {
   padding: 4px 12px;
   border: 1px solid var(--erp-border);
   border-radius: var(--erp-radius-pill);
-  font-size: 13px;
+  font-size: 14px;
   color: var(--erp-text-main);
   background-color: #ffffff;
   transition: background-color 0.2s ease, border-color 0.2s ease;
@@ -444,7 +450,7 @@ body {
 }
 
 .erp-action-bar-title {
-  font-size: 16px;
+  font-size: 17.5px;
   font-weight: 600;
   color: var(--erp-text-main);
   letter-spacing: -0.01em;
@@ -469,9 +475,9 @@ body {
 }
 
 .erp-tab-group .erp-btn {
-  height: 28px;
+  height: 30px;
   padding: 0 12px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   border-radius: 9px;
   border: none;
 }
@@ -482,10 +488,10 @@ body {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 36px;
+  height: 38px;
   padding: 0 16px;
   border-radius: var(--erp-radius-btn);
-  font-size: 13.5px;
+  font-size: 14.5px;
   font-weight: 600;
   cursor: pointer;
   border: 1px solid transparent;
@@ -535,16 +541,16 @@ body {
 }
 
 .erp-btn-sm {
-  height: 30px;
+  height: 32px;
   padding: 0 12px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   border-radius: 9px;
 }
 
 .erp-btn-icon {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   padding: 0;
   border-radius: 9px;
   display: inline-flex;
@@ -592,11 +598,11 @@ body {
 }
 
 .erp-input {
-  height: 36px;
+  height: 38px;
   border: 1px solid var(--erp-border);
   border-radius: var(--erp-radius-input);
   padding: 0 14px;
-  font-size: 13.5px;
+  font-size: 14.5px;
   color: var(--erp-text-main);
   background-color: #ffffff;
   outline: none;
@@ -620,11 +626,11 @@ body {
 }
 
 .erp-select {
-  height: 36px;
+  height: 38px;
   border: 1px solid var(--erp-border);
   border-radius: var(--erp-radius-input);
   padding: 0 32px 0 14px;
-  font-size: 13.5px;
+  font-size: 14.5px;
   color: var(--erp-text-main);
   background-color: #ffffff;
   outline: none;
@@ -644,7 +650,7 @@ textarea.erp-input {
   min-height: 72px;
   border-radius: var(--erp-radius-input);
   padding: 10px 14px;
-  font-size: 13.5px;
+  font-size: 14.5px;
   resize: vertical;
 }
 
@@ -675,21 +681,21 @@ textarea.erp-input {
   align-items: center;
   justify-content: space-between;
   color: var(--erp-text-muted);
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .erp-metric-value {
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 800;
   letter-spacing: -0.025em;
   color: var(--erp-text-main);
 }
 
 .erp-metric-footer {
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--erp-text-muted);
   display: flex;
   align-items: center;
@@ -721,8 +727,8 @@ textarea.erp-input {
   z-index: 2;
   background-color: var(--erp-bg);
   border-bottom: 1px solid var(--erp-border);
-  padding: 10px 14px;
-  font-size: 12px;
+  padding: 11px 14px;
+  font-size: 13px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -731,9 +737,9 @@ textarea.erp-input {
 }
 
 .erp-table td {
-  padding: 10px 14px;
+  padding: 11px 14px;
   border-bottom: 1px solid var(--erp-border);
-  font-size: 13.5px;
+  font-size: 14.5px;
   color: var(--erp-text-main);
   vertical-align: middle;
 }
@@ -755,9 +761,9 @@ textarea.erp-input {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  padding: 1.5px 7px;
+  padding: 2px 8px;
   border-radius: var(--erp-radius-pill);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.35;
   border: 1px solid transparent;
@@ -839,7 +845,7 @@ textarea.erp-input {
 }
 
 .erp-progress-label {
-  font-size: 13.5px;
+  font-size: 14.5px;
   font-weight: 600;
   color: var(--erp-text-main);
   min-width: 34px;
@@ -875,7 +881,7 @@ textarea.erp-input {
 }
 
 .erp-drawer-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--erp-text-main);
 }
@@ -888,7 +894,7 @@ textarea.erp-input {
 
 .erp-drawer-tab {
   padding: 8px 14px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--erp-text-muted);
   border-bottom: 2px solid transparent;
@@ -923,7 +929,7 @@ textarea.erp-input {
   align-items: center;
   gap: 8px;
   padding: 12px 4px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--erp-text-muted);
   background: transparent;
@@ -954,7 +960,7 @@ textarea.erp-input {
   height: 18px;
   padding: 0 6px;
   border-radius: var(--erp-radius-pill);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   background-color: var(--erp-bg);
   color: var(--erp-text-muted);
@@ -984,13 +990,15 @@ textarea.erp-input {
   position: fixed;
   top: 0;
   left: 0;
+  right: 0;
+  bottom: 0;
   width: 100vw;
   height: 100vh;
   background-color: rgba(15, 23, 42, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 9999;
   backdrop-filter: blur(2px);
   animation: erpBackdropFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -1005,6 +1013,7 @@ textarea.erp-input {
   flex-direction: column;
   max-height: 90vh;
   overflow: hidden;
+  margin: auto;
   animation: erpModalFadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
@@ -1056,12 +1065,12 @@ textarea.erp-input {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 13px;
+  font-size: 14px;
   transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .erp-modal-title {
-  font-size: 15.5px;
+  font-size: 16.5px;
   font-weight: 600;
   color: var(--erp-text-main);
 }
@@ -1092,7 +1101,7 @@ textarea.erp-input {
 }
 
 .erp-form-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--erp-text-muted);
   text-transform: uppercase;
@@ -1101,14 +1110,14 @@ textarea.erp-input {
 
 .erp-label {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--erp-text-main);
   margin-bottom: 6px;
 }
 
 .erp-form-error {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--erp-text-error);
   margin-top: 2px;
@@ -1161,7 +1170,7 @@ textarea.erp-input {
   gap: 8px;
   width: 100%;
   padding: 7px 12px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--erp-text-main);
   background: transparent;
@@ -1243,7 +1252,7 @@ textarea.erp-input {
 
 .project-summary-grid .erp-badge {
   font-weight: 500;
-  font-size: 11.5px;
+  font-size: 12px;
   padding: 1.5px 7px;
   line-height: 15px;
   border-radius: var(--erp-radius-pill);
@@ -1319,14 +1328,14 @@ textarea.erp-input {
 }
 
 .erp-analytics-title {
-  font-size: 16px;
+  font-size: 17.5px;
   font-weight: 700;
   color: var(--erp-text-main);
   letter-spacing: -0.01em;
 }
 
 .erp-analytics-subtitle {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--erp-text-muted);
   margin-top: 2px;
 }
@@ -1375,7 +1384,7 @@ textarea.erp-input {
 }
 
 .erp-kpi-label {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--erp-text-main);
   text-transform: none;
@@ -1406,7 +1415,7 @@ textarea.erp-input {
 }
 
 .erp-kpi-value {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
   color: var(--erp-text-main);
   letter-spacing: -0.025em;
@@ -1424,7 +1433,7 @@ textarea.erp-input {
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--erp-text-muted);
   padding-top: 6px;
   border-top: 1px dashed var(--erp-border);
@@ -1434,7 +1443,7 @@ textarea.erp-input {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 10.5px;
+  font-size: 11.5px;
   font-weight: 600;
   padding: 2px 7px;
   border-radius: var(--erp-radius-pill);
@@ -1502,7 +1511,7 @@ textarea.erp-input {
 }
 
 .erp-chart-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--erp-text-main);
   display: flex;
@@ -1511,7 +1520,7 @@ textarea.erp-input {
 }
 
 .erp-chart-subtitle {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--erp-text-muted);
   margin-top: 1px;
 }
@@ -1527,7 +1536,7 @@ textarea.erp-input {
 }
 
 .erp-chart-toggle-btn {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   padding: 4px 10px;
   border-radius: 6px;
@@ -1563,7 +1572,7 @@ textarea.erp-input {
   border: 1px solid var(--erp-border);
   border-radius: var(--erp-radius-sm);
   padding: 6px 10px;
-  font-size: 11px;
+  font-size: 12px;
   transform: translate(-50%, -120%);
   z-index: 10;
   box-shadow: none !important;
