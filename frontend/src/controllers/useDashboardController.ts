@@ -36,6 +36,17 @@ export function useDashboardController() {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
+  const receivePurchaseOrder = async (poId: number) => {
+    try {
+      await api.post(`/purchasing/orders/${poId}/receive`, {});
+      await fetchDashboardData();
+      return true;
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to receive purchase order');
+      return false;
+    }
+  };
+
   return {
     summary,
     recentProjects,
@@ -44,6 +55,7 @@ export function useDashboardController() {
     lowStockMaterials,
     isLoading,
     errorMessage,
+    receivePurchaseOrder,
     refresh: fetchDashboardData,
   };
 }

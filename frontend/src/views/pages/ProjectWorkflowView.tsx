@@ -154,7 +154,6 @@ export const ProjectWorkflowView: React.FC = () => {
   const [editingMaterialId, setEditingMaterialId] = useState<string | number | null>(null);
   const [materialNameInput, setMaterialNameInput] = useState<string>('');
   const [materialQtyInput, setMaterialQtyInput] = useState<string>('');
-  const [materialStatusInput, setMaterialStatusInput] = useState<string>('Ready');
   const [materialErrors, setMaterialErrors] = useState<Record<string, string>>({});
   const [materialsList, setMaterialsList] = useState<AssignedMaterialRequirement[]>([]);
 
@@ -842,12 +841,10 @@ export const ProjectWorkflowView: React.FC = () => {
       setEditingMaterialId(item.id);
       setMaterialNameInput(item.material_name);
       setMaterialQtyInput(String(item.required_qty));
-      setMaterialStatusInput(item.status || 'Ready');
     } else {
       setEditingMaterialId(null);
       setMaterialNameInput('');
       setMaterialQtyInput('');
-      setMaterialStatusInput('Ready');
     }
     setMaterialErrors({});
     setIsAssignMaterialModalOpen(true);
@@ -902,7 +899,6 @@ export const ProjectWorkflowView: React.FC = () => {
     setEditingMaterialId(null);
     setMaterialNameInput('');
     setMaterialQtyInput('');
-    setMaterialStatusInput('Ready');
   };
 
   const handleRemoveMaterialFromProject = async (reqId: number | string) => {
@@ -1208,7 +1204,7 @@ export const ProjectWorkflowView: React.FC = () => {
       >
         {/* TAB 1: SUMMARY */}
         {activeTab === 'summary' && (
-          <div className="project-summary-grid">
+          <div className="project-summary-grid erp-tab-content">
             {/* Left Column: General Information & Financial Information */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* 1. General Information Container */}
@@ -1463,7 +1459,7 @@ export const ProjectWorkflowView: React.FC = () => {
 
         {/* TAB 2: RESOURCE */}
         {activeTab === 'resource' && (
-          <div style={{ display: 'flex', flexDirection: 'column', width: '100%', flex: 1, minHeight: '360px' }}>
+          <div className="erp-tab-content" style={{ display: 'flex', flexDirection: 'column', width: '100%', flex: 1, minHeight: '360px' }}>
             {/* Sub-tab Toolbar: Selection on Left, Action on Right */}
             <div
               style={{
@@ -1730,7 +1726,7 @@ export const ProjectWorkflowView: React.FC = () => {
 
         {/* TAB 3: TASKS */}
         {activeTab === 'tasks' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="erp-tab-content" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* Header Toolbar */}
             <div
               style={{
@@ -2116,7 +2112,7 @@ export const ProjectWorkflowView: React.FC = () => {
 
         {/* TAB 4: DOCUMENT */}
         {activeTab === 'document' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div className="erp-tab-content" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
               <button
                 type="button"
@@ -2324,7 +2320,7 @@ export const ProjectWorkflowView: React.FC = () => {
               <input
                 type="text"
                 required
-                placeholder="Enter person or team name"
+                placeholder="Person or Team Name"
                 className="erp-input"
                 value={personnelNameInput}
                 onChange={e => setPersonnelNameInput(e.target.value)}
@@ -2346,7 +2342,7 @@ export const ProjectWorkflowView: React.FC = () => {
               <label className="erp-form-label">Scope</label>
               <input
                 type="text"
-                placeholder="Enter assignment scope"
+                placeholder="Assignment Scope"
                 className="erp-input"
                 value={personnelScopeInput}
                 onChange={e => setPersonnelScopeInput(e.target.value)}
@@ -2392,7 +2388,7 @@ export const ProjectWorkflowView: React.FC = () => {
               <input
                 type="text"
                 className={`erp-input ${materialErrors.name ? 'erp-input-error' : ''}`}
-                placeholder="Enter material name"
+                placeholder="Material Name"
                 value={materialNameInput}
                 onChange={e => {
                   setMaterialNameInput(e.target.value);
@@ -2413,7 +2409,7 @@ export const ProjectWorkflowView: React.FC = () => {
                 type="number"
                 min="0.01"
                 step="any"
-                placeholder="Enter required quantity"
+                placeholder="Required Quantity"
                 className={`erp-input ${materialErrors.qty ? 'erp-input-error' : ''}`}
                 value={materialQtyInput}
                 onChange={e => {
@@ -2463,7 +2459,7 @@ export const ProjectWorkflowView: React.FC = () => {
               <input
                 type="text"
                 required
-                placeholder="Enter document title or reference"
+                placeholder="Document Title or Reference"
                 className="erp-input"
                 value={newDoc.name}
                 onChange={e => setNewDoc({ ...newDoc, name: e.target.value })}
@@ -2540,6 +2536,7 @@ export const ProjectWorkflowView: React.FC = () => {
                 min="0.01"
                 step="0.01"
                 required
+                placeholder="Payment Amount"
                 className={`erp-input ${paymentFormErrors.amount ? 'erp-input-error' : ''}`}
                 value={newPayment.amount || ''}
                 onChange={e => {
@@ -2582,7 +2579,7 @@ export const ProjectWorkflowView: React.FC = () => {
               <label className="erp-form-label">Reference Number (Optional)</label>
               <input
                 type="text"
-                placeholder="Enter transaction or cheque reference number"
+                placeholder="Transaction or Cheque Reference Number"
                 className="erp-input"
                 value={newPayment.reference_number}
                 onChange={e => setNewPayment({ ...newPayment, reference_number: e.target.value })}
@@ -2593,7 +2590,7 @@ export const ProjectWorkflowView: React.FC = () => {
               <label className="erp-form-label">Notes (Optional)</label>
               <textarea
                 rows={2}
-                placeholder="Enter payment notes or terms"
+                placeholder="Payment Notes or Terms"
                 className="erp-textarea"
                 value={newPayment.notes}
                 onChange={e => setNewPayment({ ...newPayment, notes: e.target.value })}
@@ -2637,7 +2634,7 @@ export const ProjectWorkflowView: React.FC = () => {
               <input
                 type="text"
                 required
-                placeholder="Enter task or milestone name"
+                placeholder="Task or Milestone Name"
                 className="erp-input"
                 style={taskFormError ? { borderColor: 'var(--erp-border-error)' } : undefined}
                 value={taskNameInput}
@@ -2657,7 +2654,7 @@ export const ProjectWorkflowView: React.FC = () => {
               <label className="erp-form-label">Description (Optional)</label>
               <input
                 type="text"
-                placeholder="Brief description or instructions"
+                placeholder="Description or Instructions"
                 className="erp-input"
                 value={taskDescInput}
                 onChange={e => setTaskDescInput(e.target.value)}
@@ -2745,7 +2742,7 @@ export const ProjectWorkflowView: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="Enter subtask title"
+                  placeholder="Subtask Title"
                   className="erp-input"
                   style={subtaskFormError ? { borderColor: 'var(--erp-border-error)' } : undefined}
                   value={editingSubtaskData.title}
@@ -2830,7 +2827,7 @@ export const ProjectWorkflowView: React.FC = () => {
                 <label className="erp-form-label">Description (Optional)</label>
                 <input
                   type="text"
-                  placeholder="Brief description or notes"
+                  placeholder="Subtask Description or Notes"
                   className="erp-input"
                   value={editingSubtaskData.description || ''}
                   onChange={e =>
@@ -2916,7 +2913,7 @@ export const ProjectWorkflowView: React.FC = () => {
                 type="text"
                 required
                 autoFocus
-                placeholder="Enter subtask title"
+                placeholder="Subtask Title"
                 className="erp-input"
                 style={addSubtaskFormError ? { borderColor: 'var(--erp-border-error)' } : undefined}
                 value={subtaskTitleInput}
@@ -2936,7 +2933,7 @@ export const ProjectWorkflowView: React.FC = () => {
               <label className="erp-form-label">Description (Optional)</label>
               <input
                 type="text"
-                placeholder="Brief description or notes"
+                placeholder="Subtask Description or Notes"
                 className="erp-input"
                 value={subtaskDescInput}
                 onChange={e => setSubtaskDescInput(e.target.value)}

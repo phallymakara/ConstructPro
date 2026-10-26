@@ -89,6 +89,20 @@ export interface StockMovement {
   created_at: string;
 }
 
+export interface StockMovementItemPayload {
+  material_id: number;
+  quantity: number;
+  unit_cost?: number;
+}
+
+export interface StockMovementBatchPayload {
+  movement_type: string;
+  project_id?: number | null;
+  recipient_worker?: string;
+  reference_note?: string;
+  items: StockMovementItemPayload[];
+}
+
 export interface ProjectItem {
   id: number;
   project_id: number;
@@ -288,6 +302,26 @@ export interface QuotationFormData {
   notes: string;
 }
 
+export interface DashboardShortageItem {
+  id: number;
+  code: string;
+  name: string;
+  category: string;
+  current_stock: number;
+  minimum_stock: number;
+  unit: string;
+}
+
+export interface DashboardUpcomingDelivery {
+  id: number;
+  po_number: string;
+  supplier_name: string;
+  channel: string;
+  expected_delivery_date?: string;
+  total_cost: number;
+  status: string;
+}
+
 export interface DashboardSummary {
   total_projects: number;
   active_projects: number;
@@ -299,6 +333,14 @@ export interface DashboardSummary {
   projected_profit: number;
   low_stock_count: number;
   shortage_count: number;
+  total_collected_cash?: number;
+  total_receivable?: number;
+  total_inventory_value?: number;
+  open_po_count?: number;
+  open_po_value?: number;
+  overseas_in_transit_count?: number;
+  shortage_items?: DashboardShortageItem[];
+  upcoming_deliveries?: DashboardUpcomingDelivery[];
 }
 
 export interface Supplier {

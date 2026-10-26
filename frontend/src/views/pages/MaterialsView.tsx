@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Plus,
   Search,
   AlertTriangle,
-  ScanLine,
-  Barcode as BarcodeIcon,
+  QrCode as QrIcon,
   SlidersHorizontal,
-  ChevronDown,
-  ChevronRight,
-  Boxes,
   FolderTree,
+  MoreHorizontal,
+  Package,
+  Layers,
+  MapPin,
   Edit2,
   Trash2,
 } from 'lucide-react';
@@ -18,16 +18,14 @@ import { Modal } from '../components/Modal';
 import { BarcodeMovementModal } from '../components/BarcodeMovementModal';
 import { BarcodeLabelModal } from '../components/BarcodeLabelModal';
 import { CategoryManageModal } from '../components/CategoryManageModal';
+import { StockOutModal } from '../components/StockOutModal';
 import type { Material, MaterialFormData } from '../../models/types';
 
 export const MaterialsView: React.FC = () => {
   const {
     materials,
+    allMaterials,
     categories,
-    groupedInventory,
-    totalCount,
-    filteredCount,
-    movements,
     categoryFilter,
     productTypeFilter,
     existingCategories,
@@ -43,7 +41,9 @@ export const MaterialsView: React.FC = () => {
     isStockAdjustmentModalOpen,
     selectedMaterialForAdjust,
     isBarcodeMovementModalOpen,
+    isStockOutModalOpen,
     selectedMaterialForBarcodeLabel,
+    projects,
     setCategoryFilter,
     setProductTypeFilter,
     setSearchQuery,
@@ -54,8 +54,8 @@ export const MaterialsView: React.FC = () => {
     setIsStockAdjustmentModalOpen,
     setSelectedMaterialForAdjust,
     setIsBarcodeMovementModalOpen,
+    setIsStockOutModalOpen,
     setSelectedMaterialForBarcodeLabel,
-    setErrorMessage,
     createCategory,
     updateCategory,
     deleteCategory,
@@ -64,18 +64,64 @@ export const MaterialsView: React.FC = () => {
     deleteMaterial,
     adjustStock,
     recordStockMovement,
+    batchStockMovement,
     findMaterialByBarcode,
   } = useMaterialsController();
 
-  // Collapsed state for category sections
-  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+
+
+  // Active three-dot action dropdown ID
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleOutsideClick = () => setOpenMenuId(null);
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, []);
+
+  // Summary operational metrics
+  const totalStockUnits = useMemo(() => {
+    return allMaterials.reduce((sum, m) => sum + (m.current_stock || 0), 0);
+  }, [allMaterials]);
+
+  const lowStockCount = useMemo(() => {
+    return allMaterials.filter(m => (m.current_stock || 0) <= (m.minimum_stock || 0)).length;
+  }, [allMaterials]);
+
+  // Direct stockout from mobile camera URL parameter (?picklist=... or ?stockout=...)
+  const [urlStockoutMaterial, setUrlStockoutMaterial] = useState<Material | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const targetCode =
+      params.get('picklist') ||
+      params.get('stockout') ||
+      params.get('scan') ||
+      params.get('code');
+    if (targetCode && materials.length > 0) {
+      const trimmed = targetCode.trim().toLowerCase();
+      const matched = materials.find(
+        m =>
+          (m.barcode && m.barcode.toLowerCase() === trimmed) ||
+          m.code.toLowerCase() === trimmed
+      );
+      if (matched) {
+        setUrlStockoutMaterial(matched);
+        setIsStockOutModalOpen(true);
+        try {
+          window.history.replaceState({}, '', window.location.pathname);
+        } catch {}
+      }
+    }
+  }, [materials, setIsStockOutModalOpen]);
 
   // New / Edit Product Form State
   const [formData, setFormData] = useState<MaterialFormData>({
     code: '',
     name: '',
     barcode: '',
-    category: 'Profiles',
+    category: 'ដែក',
     product_type: 'Standard',
     unit: 'm',
     unit_cost: 0,
@@ -84,6 +130,29 @@ export const MaterialsView: React.FC = () => {
     storage_location: '',
     notes: '',
   });
+
+  // Structured warehouse location state (Row, Bay, Level)
+  const [warehouseLoc, setWarehouseLoc] = useState({
+    row: '',
+    bay: '',
+    level: '',
+  });
+
+  const handleWarehouseLocChange = (field: 'row' | 'bay' | 'level', val: string) => {
+    const updated = { ...warehouseLoc, [field]: val };
+    setWarehouseLoc(updated);
+    const r = updated.row.trim().toLowerCase().replace(/^r/i, '');
+    const b = updated.bay.trim().toLowerCase().replace(/^b/i, '');
+    const l = updated.level.trim().toLowerCase().replace(/^l/i, '');
+    const parts: string[] = [];
+    if (r) parts.push(`r${r}`);
+    if (b) parts.push(`b${b}`);
+    if (l) parts.push(`l${l}`);
+    setFormData(prev => ({
+      ...prev,
+      storage_location: parts.join('-'),
+    }));
+  };
 
   // Quick Manual Adjust Form State
   const [adjustData, setAdjustData] = useState<{
@@ -98,29 +167,22 @@ export const MaterialsView: React.FC = () => {
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  const toggleCategoryCollapse = (category: string) => {
-    setCollapsedCategories(prev => ({
-      ...prev,
-      [category]: !prev[category],
-    }));
-  };
 
   const handleOpenCreateModal = (defaultCategory?: string) => {
     setFormErrors({});
-    const initialCategory =
-      defaultCategory ||
-      (categoryFilter !== 'All' ? categoryFilter : (existingCategories[0] || 'Profiles'));
+    const initialCategory = defaultCategory || '';
 
+    setWarehouseLoc({ row: '', bay: '', level: '' });
     setFormData({
       code: '',
       name: '',
       barcode: '',
       category: initialCategory,
-      product_type: productTypeFilter !== 'All' ? productTypeFilter : 'Standard',
+      product_type: '',
       unit: 'm',
-      unit_cost: 0,
-      current_stock: 0,
-      minimum_stock: 5,
+      unit_cost: '' as any,
+      current_stock: '' as any,
+      minimum_stock: '' as any,
       storage_location: '',
       notes: '',
     });
@@ -129,6 +191,12 @@ export const MaterialsView: React.FC = () => {
 
   const handleOpenEditModal = (mat: Material) => {
     setFormErrors({});
+    const parsedLoc = parseWarehouseLocation(mat.storage_location);
+    setWarehouseLoc({
+      row: parsedLoc.row,
+      bay: parsedLoc.bay,
+      level: parsedLoc.level,
+    });
     setFormData({
       code: mat.code,
       name: mat.name,
@@ -185,8 +253,301 @@ export const MaterialsView: React.FC = () => {
     await adjustStock(adjustData.movementType, adjustData.quantity, adjustData.notes);
   };
 
+  const parseWarehouseLocation = (locStr?: string) => {
+    if (!locStr || !locStr.trim()) {
+      return { row: '', bay: '', level: '', code: '' };
+    }
+    const text = locStr.trim().toLowerCase();
+
+    // Match r01-b01-l01 or r01_b01_l01
+    const rblMatch = text.match(/r([a-z0-9]+)[-_]b([a-z0-9]+)[-_]l([a-z0-9]+)/i);
+    if (rblMatch) {
+      return {
+        row: rblMatch[1],
+        bay: rblMatch[2],
+        level: rblMatch[3],
+        code: `r${rblMatch[1]}-b${rblMatch[2]}-l${rblMatch[3]}`,
+      };
+    }
+
+    // Match verbose text: Row 01, Bay 01, Level 01 or Row A-01, Bay 01, Level 02
+    const rowMatch = text.match(/(?:row|r)\s*[:#-]?\s*([a-z0-9]+)/i);
+    const bayMatch = text.match(/(?:bay|b|rack)\s*[:#-]?\s*([a-z0-9]+)/i);
+    const levelMatch = text.match(/(?:level|lvl|l)\s*[:#-]?\s*([a-z0-9]+)/i);
+
+    if (rowMatch || bayMatch || levelMatch) {
+      const r = rowMatch ? rowMatch[1] : '';
+      const b = bayMatch ? bayMatch[1] : '';
+      const l = levelMatch ? levelMatch[1] : '';
+      const parts: string[] = [];
+      if (r) parts.push(`r${r}`);
+      if (b) parts.push(`b${b}`);
+      if (l) parts.push(`l${l}`);
+      return {
+        row: r,
+        bay: b,
+        level: l,
+        code: parts.join('-'),
+      };
+    }
+
+    return { row: '', bay: '', level: '', code: text };
+  };
+
+  const renderMaterialRow = (item: Material, showCategory: boolean = true) => {
+    const isLow = (item.current_stock || 0) <= (item.minimum_stock || 0);
+    const parsedLoc = parseWarehouseLocation(item.storage_location);
+    const bufferMax = Math.max((item.minimum_stock || 1) * 2, item.current_stock || 1);
+    const bufferPct = Math.min(100, Math.round(((item.current_stock || 0) / bufferMax) * 100));
+
+    return (
+      <tr key={item.id}>
+        {/* Material Name */}
+        <td>
+          <span style={{ color: 'var(--erp-text-main)', fontSize: '14px', fontWeight: 500 }}>
+            {item.name}
+          </span>
+        </td>
+
+        {/* Code */}
+        <td style={{ width: '130px', whiteSpace: 'nowrap' }}>
+          <span style={{ fontFamily: 'var(--erp-mono-font, monospace)', fontSize: '12.5px', color: 'var(--erp-text-muted)' }}>
+            {item.code}
+          </span>
+        </td>
+
+        {/* Category & Product Type */}
+        {showCategory && (
+          <td style={{ width: '150px', whiteSpace: 'nowrap' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <span style={{ fontSize: '14px', color: 'var(--erp-text-main)' }}>
+                {item.category}
+              </span>
+              <span style={{ fontSize: '12px', color: 'var(--erp-text-muted)' }}>
+                {item.product_type || 'Standard'}
+              </span>
+            </div>
+          </td>
+        )}
+
+        {/* Storage Location */}
+        <td style={{ width: '130px', whiteSpace: 'nowrap' }}>
+          {parsedLoc.code ? (
+            <span style={{ fontSize: '13.5px', color: 'var(--erp-text-main)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <MapPin size={12} color="var(--erp-text-muted)" />
+              <span>{parsedLoc.code}</span>
+            </span>
+          ) : (
+            <span style={{ color: 'var(--erp-text-light)', fontSize: '13px' }}>—</span>
+          )}
+        </td>
+
+        {/* Stock Level & Buffer Depletion */}
+        <td style={{ width: '180px', whiteSpace: 'nowrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+              <span
+                style={{
+                  fontSize: '14.5px',
+                  fontWeight: 500,
+                  color: isLow ? 'var(--erp-text-error)' : 'var(--erp-text-main)',
+                }}
+              >
+                {item.current_stock.toLocaleString()} {item.unit}
+              </span>
+              <span style={{ fontSize: '11.5px', color: isLow ? 'var(--erp-text-error)' : 'var(--erp-text-muted)' }}>
+                {isLow ? `Low (min ${item.minimum_stock})` : `Min: ${item.minimum_stock}`}
+              </span>
+            </div>
+            {/* Visual Buffer Bar */}
+            <div
+              style={{
+                width: '100%',
+                height: '3px',
+                backgroundColor: 'var(--erp-border)',
+                borderRadius: '2px',
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  width: `${bufferPct}%`,
+                  height: '100%',
+                  backgroundColor: isLow ? '#ef4444' : '#10b981',
+                  borderRadius: '2px',
+                }}
+              />
+            </div>
+          </div>
+        </td>
+
+        {/* Unit Cost */}
+        <td style={{ width: '110px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: '14.5px', color: 'var(--erp-text-main)' }}>
+            ${(item.unit_cost || 0).toFixed(2)}
+          </span>
+          <span style={{ fontSize: '11.5px', color: 'var(--erp-text-muted)', marginLeft: '3px' }}>
+            /{item.unit}
+          </span>
+        </td>
+
+        {/* Action (Three-Dot Dropdown) */}
+        <td style={{ width: '80px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+          <div className="erp-dropdown-container">
+            <button
+              type="button"
+              className="erp-btn erp-btn-secondary erp-btn-sm"
+              style={{ padding: '4px 8px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+              onClick={e => {
+                e.stopPropagation();
+                setOpenMenuId(openMenuId === item.id ? null : item.id);
+              }}
+              title="Actions"
+              aria-label="Actions"
+            >
+              <MoreHorizontal size={15} />
+            </button>
+
+            {openMenuId === item.id && (
+              <div className="erp-dropdown-menu" onClick={e => e.stopPropagation()}>
+                <button
+                  type="button"
+                  className="erp-dropdown-item"
+                  onClick={() => {
+                    setOpenMenuId(null);
+                    handleOpenQuickAdjust(item);
+                  }}
+                >
+                  <SlidersHorizontal size={13} />
+                  <span>Stock In / Out</span>
+                </button>
+                <button
+                  type="button"
+                  className="erp-dropdown-item"
+                  onClick={() => {
+                    setOpenMenuId(null);
+                    setSelectedMaterialForBarcodeLabel(item);
+                  }}
+                >
+                  <QrIcon size={13} />
+                  <span>Print Barcode Label</span>
+                </button>
+                <button
+                  type="button"
+                  className="erp-dropdown-item"
+                  onClick={() => {
+                    setOpenMenuId(null);
+                    handleOpenEditModal(item);
+                  }}
+                >
+                  <Edit2 size={13} />
+                  <span>Edit Product</span>
+                </button>
+                <div style={{ height: '1px', backgroundColor: 'var(--erp-border)', margin: '4px 0' }} />
+                <button
+                  type="button"
+                  className="erp-dropdown-item"
+                  style={{ color: 'var(--erp-text-error)' }}
+                  onClick={() => {
+                    setOpenMenuId(null);
+                    if (window.confirm(`Delete product "${item.name}"?`)) {
+                      deleteMaterial(item.id);
+                    }
+                  }}
+                >
+                  <Trash2 size={13} />
+                  <span>Delete Product</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
+
+
   return (
-    <div className="erp-content" style={{ animation: 'erpFadeIn 0.2s ease-out' }}>
+    <div className="erp-content" style={{ animation: 'erpFadeIn 0.2s ease-out', gap: '6px', padding: '6px 10px' }}>
+      {/* Operational Inventory Telemetry Strip */}
+      <div className="erp-kpi-grid-4" style={{ gap: '6px', marginBottom: '0px' }}>
+        {/* Catalog Items */}
+        <div className="erp-kpi-card" style={{ padding: '6px 10px', gap: '2px' }}>
+          <div className="erp-kpi-header" style={{ marginBottom: 0 }}>
+            <span className="erp-kpi-label">Catalog Products</span>
+            <div className="erp-kpi-icon">
+              <Package size={14} color="#0284c7" />
+            </div>
+          </div>
+          <div className="erp-kpi-body">
+            <div className="erp-kpi-value" style={{ fontSize: '20px', lineHeight: 1.1 }}>
+              {allMaterials.length}
+            </div>
+          </div>
+        </div>
+
+        {/* Physical Stock Units */}
+        <div className="erp-kpi-card" style={{ padding: '6px 10px', gap: '2px' }}>
+          <div className="erp-kpi-header" style={{ marginBottom: 0 }}>
+            <span className="erp-kpi-label">Warehouse Units</span>
+            <div className="erp-kpi-icon">
+              <Layers size={14} color="#0284c7" />
+            </div>
+          </div>
+          <div className="erp-kpi-body">
+            <div className="erp-kpi-value" style={{ fontSize: '20px', lineHeight: 1.1 }}>
+              {totalStockUnits.toLocaleString()}
+            </div>
+          </div>
+        </div>
+
+        {/* Buffer Alerts (Interactive Filter) */}
+        <div
+          className="erp-kpi-card"
+          onClick={() => setShowLowStockOnly(!showLowStockOnly)}
+          style={{
+            cursor: 'pointer',
+            borderColor: showLowStockOnly ? '#ef4444' : undefined,
+            padding: '6px 10px',
+            gap: '2px',
+          }}
+          title="Click to toggle low stock filter"
+        >
+          <div className="erp-kpi-header" style={{ marginBottom: 0 }}>
+            <span className="erp-kpi-label">Buffer Alerts</span>
+            <div className="erp-kpi-icon">
+              <AlertTriangle size={14} color={lowStockCount > 0 ? '#dc2626' : 'var(--erp-text-muted)'} />
+            </div>
+          </div>
+          <div className="erp-kpi-body">
+            <div className="erp-kpi-value" style={{ color: lowStockCount > 0 ? 'var(--erp-text-error, #dc2626)' : 'inherit', fontSize: '20px', lineHeight: 1.1 }}>
+              {lowStockCount}
+            </div>
+          </div>
+        </div>
+
+        {/* Categories */}
+        <div
+          className="erp-kpi-card"
+          onClick={() => setIsCategoryModalOpen(true)}
+          style={{ cursor: 'pointer', padding: '6px 10px', gap: '2px' }}
+          title="Click to manage categories"
+        >
+          <div className="erp-kpi-header" style={{ marginBottom: 0 }}>
+            <span className="erp-kpi-label">Product Categories</span>
+            <div className="erp-kpi-icon">
+              <FolderTree size={14} color="#0284c7" />
+            </div>
+          </div>
+          <div className="erp-kpi-body">
+            <div className="erp-kpi-value" style={{ fontSize: '20px', lineHeight: 1.1 }}>
+              {categories.length || existingCategories.length}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Top Action Bar */}
       <div
         className="erp-action-bar"
@@ -195,19 +556,20 @@ export const MaterialsView: React.FC = () => {
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'nowrap',
-          gap: '12px',
+          gap: '6px',
+          padding: '5px 8px',
           overflowX: 'auto',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: 0 }}>
           {/* Search Box */}
-          <div className="erp-input-group" style={{ width: '380px', flexShrink: 0 }}>
+          <div className="erp-input-group" style={{ width: '280px', flexShrink: 0 }}>
             <Search className="erp-input-icon" />
             <input
               type="text"
-              placeholder="Search"
+              placeholder="Search materials..."
               className="erp-input erp-input-with-icon"
-              style={{ width: '100%' }}
+              style={{ width: '100%', height: '30px', fontSize: '13px' }}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
@@ -216,7 +578,7 @@ export const MaterialsView: React.FC = () => {
           {/* Category Filter */}
           <select
             className="erp-select"
-            style={{ width: '145px', flexShrink: 0 }}
+            style={{ width: '140px', flexShrink: 0, height: '30px', fontSize: '12.5px', padding: '0 8px' }}
             value={categoryFilter}
             onChange={e => {
               setCategoryFilter(e.target.value);
@@ -232,7 +594,7 @@ export const MaterialsView: React.FC = () => {
           {/* Product Type Filter */}
           <select
             className="erp-select"
-            style={{ width: '135px', flexShrink: 0 }}
+            style={{ width: '130px', flexShrink: 0, height: '30px', fontSize: '12.5px', padding: '0 8px' }}
             value={productTypeFilter}
             onChange={e => setProductTypeFilter(e.target.value)}
           >
@@ -241,63 +603,31 @@ export const MaterialsView: React.FC = () => {
               <option key={t} value={t}>{t}</option>
             ))}
           </select>
-
-          {/* Low Stock Toggle */}
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
-            <input
-              type="checkbox"
-              checked={showLowStockOnly}
-              onChange={e => setShowLowStockOnly(e.target.checked)}
-            />
-            <span style={{ color: showLowStockOnly ? 'var(--erp-text-error)' : 'inherit' }}>
-              Low Stock Alert
-            </span>
-          </label>
         </div>
 
-        {/* Action Buttons: Categories, Barcode Scan (Icon only), Product */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
           {/* Categories Button */}
           <button
+            type="button"
             className="erp-btn erp-btn-secondary"
             onClick={() => setIsCategoryModalOpen(true)}
-            style={{ gap: '6px', whiteSpace: 'nowrap' }}
+            style={{ height: '30px', padding: '0 8px', gap: '4px', fontSize: '12px', whiteSpace: 'nowrap' }}
             title="Manage Categories"
           >
-            <FolderTree size={14} />
+            <FolderTree size={13} />
             <span>Categories</span>
           </button>
 
-          {/* Barcode Movement Button (Icon Only) */}
+          {/* Add Product Button */}
           <button
-            className="erp-btn"
-            style={{
-              backgroundColor: '#15803d',
-              color: '#ffffff',
-              border: 'none',
-              width: '36px',
-              height: '36px',
-              padding: 0,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 'var(--erp-radius-sm)',
-              flexShrink: 0,
-            }}
-            onClick={() => setIsBarcodeMovementModalOpen(true)}
-            title="Scan Barcode (Stock In / Out)"
-          >
-            <ScanLine size={16} />
-          </button>
-
-          {/* Product Button */}
-          <button
+            type="button"
             className="erp-btn erp-btn-primary"
             onClick={() => handleOpenCreateModal()}
-            style={{ gap: '6px', whiteSpace: 'nowrap' }}
+            style={{ height: '30px', padding: '0 10px', gap: '4px', fontSize: '12px', whiteSpace: 'nowrap' }}
             title="Add Product"
           >
-            <Plus size={14} />
+            <Plus size={13} />
             <span>Product</span>
           </button>
         </div>
@@ -305,248 +635,81 @@ export const MaterialsView: React.FC = () => {
 
       {/* Clean Uncontained Error Message */}
       {errorMessage && (
-        <div style={{ color: 'var(--erp-text-error)', fontSize: '12px', padding: '0 4px' }}>
+        <div style={{ color: 'var(--erp-text-error)', fontSize: '12px', padding: '0 4px', marginBottom: '4px' }}>
           {errorMessage}
         </div>
       )}
 
       {/* Main View Area */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-        {isLoading ? (
-          <div className="erp-table-container" style={{ padding: '36px 20px', textAlign: 'center', color: 'var(--erp-text-muted)' }}>
-            Loading inventory catalog...
-          </div>
-        ) : groupedInventory.length === 0 ? (
-          <div className="erp-table-container" style={{ padding: '36px 20px', textAlign: 'center', color: 'var(--erp-text-muted)' }}>
-            No inventory products found matching your search.
-          </div>
-        ) : (
-          groupedInventory.map(group => {
-            const isCollapsed = !!collapsedCategories[group.category];
-            return (
-              <div
-                key={group.category}
-                style={{
-                  border: '1px solid var(--erp-border)',
-                  borderRadius: 'var(--erp-radius-card)',
-                  backgroundColor: 'var(--erp-surface)',
-                  overflow: 'hidden',
-                }}
-              >
-                {/* Category Header Row */}
-                <div
-                  onClick={() => toggleCategoryCollapse(group.category)}
-                  style={{
-                    padding: '10px 16px',
-                    backgroundColor: 'var(--erp-surface-hover)',
-                    borderBottom: isCollapsed ? 'none' : '1px solid var(--erp-border)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    cursor: 'pointer',
-                    userSelect: 'none',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
-                    <span style={{ fontSize: '14.5px', fontWeight: 700, color: 'var(--erp-text-main)' }}>
-                      {group.category}
-                    </span>
-                    <span style={{ fontSize: '12px', color: 'var(--erp-text-muted)' }}>
-                      ({group.totalItems} items)
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12.5px' }}>
-                    <span style={{ color: 'var(--erp-text-muted)' }}>
-                      On-hand Stock: <strong style={{ color: 'var(--erp-text-main)' }}>{group.totalStock.toLocaleString()}</strong>
-                    </span>
-                  </div>
-                </div>
-
-                {/* Category Content: Subgrouped by Product Type */}
-                {!isCollapsed && (
-                  <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                    {group.types.length === 0 ? (
-                      <div style={{ padding: '16px', textAlign: 'center', color: 'var(--erp-text-muted)', fontSize: '12.5px' }}>
-                        No products in this category yet.
-                      </div>
-                    ) : (
-                      group.types.map(subType => (
-                        <div key={subType.productType}>
-                          {/* Product Type Sub-header */}
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              marginBottom: '6px',
-                              paddingBottom: '4px',
-                              borderBottom: '1px dashed var(--erp-border)',
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <Boxes size={14} style={{ color: 'var(--erp-primary)' }} />
-                              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--erp-text-main)' }}>
-                                {subType.productType}
-                              </span>
-                              <span style={{ fontSize: '11.5px', color: 'var(--erp-text-muted)' }}>
-                                ({subType.items.length} items)
-                              </span>
-                            </div>
-                            <span style={{ fontSize: '12px', color: 'var(--erp-text-muted)' }}>
-                              Type Stock: <strong>{subType.totalStock.toLocaleString()}</strong>
-                            </span>
-                          </div>
-
-                          {/* 3-Column Table: Name, Qty, Action */}
-                          <div className="erp-table-container" style={{ margin: 0 }}>
-                            <table className="erp-table" style={{ width: '100%' }}>
-                              <thead>
-                                <tr>
-                                  <th style={{ width: '60%' }}>Name</th>
-                                  <th style={{ width: '25%' }}>Qty</th>
-                                  <th style={{ width: '15%', textAlign: 'right' }}>Action</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {subType.items.map(item => {
-                                  const isLow = (item.current_stock || 0) <= (item.minimum_stock || 0);
-                                  return (
-                                    <tr key={item.id}>
-                                      {/* Name Column: Product Name, Item Code, Barcode, Location */}
-                                      <td>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                                          <span style={{ fontWeight: 600, color: 'var(--erp-text-main)' }}>
-                                            {item.name}
-                                          </span>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                            <span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'var(--erp-text-muted)' }}>
-                                              Code: {item.code}
-                                            </span>
-                                            <span
-                                              style={{
-                                                fontFamily: 'monospace',
-                                                fontSize: '11px',
-                                                padding: '1px 5px',
-                                                borderRadius: 'var(--erp-radius-sm)',
-                                                backgroundColor: 'var(--erp-surface-hover)',
-                                                color: 'var(--erp-text-main)',
-                                                border: '1px solid var(--erp-border)',
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '3px',
-                                              }}
-                                              title={`Barcode: ${item.barcode || item.code}`}
-                                            >
-                                              <BarcodeIcon size={11} />
-                                              {item.barcode || item.code}
-                                            </span>
-                                            {item.storage_location && (
-                                              <span style={{ fontSize: '11px', color: 'var(--erp-text-muted)' }}>
-                                                {item.storage_location}
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </td>
-
-                                      {/* Qty Column with Unit and Low Stock Alert */}
-                                      <td>
-                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                          <span style={{ color: isLow ? 'var(--erp-text-error)' : 'inherit', fontWeight: isLow ? 700 : 500, fontSize: '14px' }}>
-                                            {item.current_stock} {item.unit}
-                                          </span>
-                                          {isLow && (
-                                            <span
-                                              style={{
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '2px',
-                                                fontSize: '11px',
-                                                color: 'var(--erp-text-error)',
-                                              }}
-                                              title={`Low stock alert! Min required: ${item.minimum_stock} ${item.unit}`}
-                                            >
-                                              <AlertTriangle size={12} color="#dc2626" />
-                                              <span>Low</span>
-                                            </span>
-                                          )}
-                                        </div>
-                                      </td>
-
-                                      {/* Action Column */}
-                                      <td style={{ textAlign: 'right' }}>
-                                        <div style={{ display: 'inline-flex', gap: '4px', alignItems: 'center' }}>
-                                          <button
-                                            type="button"
-                                            className="erp-btn erp-btn-secondary erp-btn-sm"
-                                            style={{ padding: '3px 6px' }}
-                                            onClick={() => handleOpenQuickAdjust(item)}
-                                            title="Quick Stock In / Out"
-                                          >
-                                            <SlidersHorizontal size={13} />
-                                          </button>
-                                          <button
-                                            type="button"
-                                            className="erp-btn erp-btn-secondary erp-btn-sm"
-                                            style={{ padding: '3px 6px' }}
-                                            onClick={() => setSelectedMaterialForBarcodeLabel(item)}
-                                            title="Print Barcode Label"
-                                          >
-                                            <BarcodeIcon size={13} />
-                                          </button>
-                                          <button
-                                            type="button"
-                                            className="erp-btn erp-btn-secondary erp-btn-sm"
-                                            style={{ padding: '3px 6px' }}
-                                            onClick={() => handleOpenEditModal(item)}
-                                            title="Edit Product"
-                                          >
-                                            <Edit2 size={13} />
-                                          </button>
-                                          <button
-                                            type="button"
-                                            className="erp-btn erp-btn-secondary erp-btn-sm"
-                                            style={{ padding: '3px 6px', color: '#b91c1c' }}
-                                            onClick={() => {
-                                              if (window.confirm(`Delete product "${item.name}"?`)) {
-                                                deleteMaterial(item.id);
-                                              }
-                                            }}
-                                            title="Delete Product"
-                                          >
-                                            <Trash2 size={13} />
-                                          </button>
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
-      </div>
+      {isLoading ? (
+        <div className="erp-table-container" style={{ padding: '36px 20px', textAlign: 'center', color: 'var(--erp-text-muted)' }}>
+          Loading inventory catalog...
+        </div>
+      ) : materials.length === 0 ? (
+        <div className="erp-table-container" style={{ padding: '36px 20px', textAlign: 'center', color: 'var(--erp-text-muted)' }}>
+          <div>No inventory products found matching your search.</div>
+          {showLowStockOnly && (
+            <button
+              type="button"
+              className="erp-btn erp-btn-secondary erp-btn-sm"
+              style={{ marginTop: '10px' }}
+              onClick={() => setShowLowStockOnly(false)}
+            >
+              Clear Low Stock Filter
+            </button>
+          )}
+        </div>
+      ) : (
+        /* Unified Table Container with Native Vertical & Horizontal Scroll and Sticky Header */
+        <div className="erp-table-container">
+          <table className="erp-table">
+            <thead>
+              <tr>
+                <th style={{ fontWeight: 400 }}>Material</th>
+                <th style={{ width: '130px', fontWeight: 400 }}>Code</th>
+                <th style={{ width: '150px', fontWeight: 400 }}>Category & Type</th>
+                <th style={{ width: '130px', fontWeight: 400 }}>Location</th>
+                <th style={{ width: '180px', fontWeight: 400 }}>Stock & Buffer</th>
+                <th style={{ width: '110px', textAlign: 'right', fontWeight: 400 }}>Price</th>
+                <th style={{ width: '80px', textAlign: 'right', fontWeight: 400 }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {materials.map(item => renderMaterialRow(item, true))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Barcode Movement Scanner Modal */}
       <BarcodeMovementModal
         isOpen={isBarcodeMovementModalOpen}
-        onClose={() => setIsBarcodeMovementModalOpen(false)}
+        onClose={() => {
+          setIsBarcodeMovementModalOpen(false);
+          setUrlStockoutMaterial(null);
+        }}
         findMaterialByBarcode={findMaterialByBarcode}
         recordStockMovement={recordStockMovement}
         actionLoading={actionLoading}
+        initialMaterial={urlStockoutMaterial}
+        initialMode="Stock Out"
       />
 
-      {/* Barcode Label Modal */}
+      {/* Take Materials Batch Picklist Modal */}
+      <StockOutModal
+        isOpen={isStockOutModalOpen}
+        onClose={() => {
+          setIsStockOutModalOpen(false);
+          setUrlStockoutMaterial(null);
+        }}
+        materials={materials}
+        projects={projects}
+        onBatchStockMovement={batchStockMovement}
+        actionLoading={actionLoading}
+        initialScannedItem={urlStockoutMaterial}
+      />
+
+      {/* Barcode / QR Label Modal */}
       <BarcodeLabelModal
         material={selectedMaterialForBarcodeLabel}
         onClose={() => setSelectedMaterialForBarcodeLabel(null)}
@@ -678,14 +841,15 @@ export const MaterialsView: React.FC = () => {
               </div>
 
               <div className="erp-form-group">
-                <label className="erp-form-label">Unit Cost ($)</label>
+                <label className="erp-form-label">Price</label>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
+                  placeholder="Price"
                   className="erp-input"
-                  value={formData.unit_cost}
-                  onChange={e => setFormData({ ...formData, unit_cost: parseFloat(e.target.value) || 0 })}
+                  value={formData.unit_cost ?? ''}
+                  onChange={e => setFormData({ ...formData, unit_cost: e.target.value === '' ? ('' as any) : (parseFloat(e.target.value) || 0) })}
                 />
               </div>
             </div>
@@ -699,9 +863,10 @@ export const MaterialsView: React.FC = () => {
                   type="number"
                   step="any"
                   min="0"
+                  placeholder={editingMaterial ? 'Current Stock' : 'Initial Stock'}
                   className="erp-input"
-                  value={formData.current_stock}
-                  onChange={e => setFormData({ ...formData, current_stock: parseFloat(e.target.value) || 0 })}
+                  value={formData.current_stock ?? ''}
+                  onChange={e => setFormData({ ...formData, current_stock: e.target.value === '' ? ('' as any) : (parseFloat(e.target.value) || 0) })}
                 />
               </div>
 
@@ -711,22 +876,50 @@ export const MaterialsView: React.FC = () => {
                   type="number"
                   step="any"
                   min="0"
+                  placeholder="Minimum Safety Stock"
                   className="erp-input"
-                  value={formData.minimum_stock}
-                  onChange={e => setFormData({ ...formData, minimum_stock: parseFloat(e.target.value) || 0 })}
+                  value={formData.minimum_stock ?? ''}
+                  onChange={e => setFormData({ ...formData, minimum_stock: e.target.value === '' ? ('' as any) : (parseFloat(e.target.value) || 0) })}
                 />
               </div>
             </div>
 
             <div className="erp-form-group">
-              <label className="erp-form-label">Storage Location</label>
-              <input
-                type="text"
-                placeholder="Storage Location"
-                className="erp-input"
-                value={formData.storage_location}
-                onChange={e => setFormData({ ...formData, storage_location: e.target.value })}
-              />
+              <label className="erp-form-label">Warehouse Storage Place (r-b-l)</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Row"
+                    className="erp-input"
+                    value={warehouseLoc.row}
+                    onChange={e => handleWarehouseLocChange('row', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Bay"
+                    className="erp-input"
+                    value={warehouseLoc.bay}
+                    onChange={e => handleWarehouseLocChange('bay', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Level"
+                    className="erp-input"
+                    value={warehouseLoc.level}
+                    onChange={e => handleWarehouseLocChange('level', e.target.value)}
+                  />
+                </div>
+              </div>
+              {formData.storage_location && (
+                <span style={{ fontSize: '12px', color: 'var(--erp-text-muted)', marginTop: '4px', display: 'block' }}>
+                  Location Code: {formData.storage_location}
+                </span>
+              )}
             </div>
 
             <div className="erp-form-group">
@@ -852,6 +1045,7 @@ export const MaterialsView: React.FC = () => {
         onDeleteCategory={deleteCategory}
         actionLoading={actionLoading}
       />
+
     </div>
   );
 };

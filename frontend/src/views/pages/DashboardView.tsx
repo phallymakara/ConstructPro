@@ -1,15 +1,16 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import {
-  PlayCircle,
-  TrendingUp,
-  AlertTriangle,
+  FolderKanban,
+  Package,
+  Truck,
   CheckCircle2,
-  XCircle,
   ChevronRight,
   Calendar,
   ChevronDown,
-  Check
+  Check,
+  Loader2,
+  Layers
 } from 'lucide-react';
 import { useDashboardController } from '../../controllers/useDashboardController';
 import { calculateDynamicProjectStatus } from '../../utils/taskProgress';
@@ -19,9 +20,39 @@ export const DashboardView: React.FC = () => {
   const {
     summary,
     allProjects,
+    allMaterials,
     isLoading,
-    errorMessage
+    errorMessage,
+    receivePurchaseOrder
   } = useDashboardController();
+
+  const [receivingPoId, setReceivingPoId] = useState<number | null>(null);
+
+  const handleQuickReceive = async (poId: number) => {
+    setReceivingPoId(poId);
+    try {
+      await receivePurchaseOrder(poId);
+    } finally {
+      setReceivingPoId(null);
+    }
+  };
+
+  const formatEtaDate = (isoStr?: string | null) => {
+    if (!isoStr) return 'Pending';
+    try {
+      const d = new Date(isoStr);
+      if (isNaN(d.getTime())) return isoStr;
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch {
+      return isoStr;
+    }
+  };
+
+  const formatUnitLabel = (unit?: string) => {
+    if (!unit) return '';
+    if (unit === 'sq_m' || unit === 'sqm') return 'm²';
+    return unit;
+  };
 
   // Filter States for Project Volume Chart
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -417,12 +448,47 @@ export const DashboardView: React.FC = () => {
     return counts;
   }, [allProjects]);
 
+  // Operational Lifecycle & Inventory Summary (Purely Operational, Zero Commercial/Money)
+  const operationalStats = useMemo(() => {
+    let inProduction = 0;
+    let installingOrReady = 0;
+    let prepOrStarting = 0;
+
+    allProjects.forEach(p => {
+      const s = (p.status || '').toLowerCase();
+      if (s === 'production' || s === 'material preparation' || s === 'in progress') {
+        inProduction++;
+      } else if (s === 'ready for delivery' || s === 'installation' || s === 'accepted') {
+        installingOrReady++;
+      } else if (s === 'starting' || s === 'inquiry' || s === 'discussion' || s === 'quotation') {
+        prepOrStarting++;
+      }
+    });
+
+    const totalStockQty = allMaterials.reduce((acc, m) => acc + (m.current_stock || 0), 0);
+    const lowStockCount = summary?.low_stock_count ?? allMaterials.filter(m => (m.current_stock || 0) <= (m.minimum_stock || 0)).length;
+    const openOrdersCount = summary?.open_po_count ?? 0;
+    const overseasInTransit = summary?.overseas_in_transit_count ?? 0;
+    const localOrdersCount = Math.max(0, openOrdersCount - overseasInTransit);
+
+    return {
+      inProduction,
+      installingOrReady,
+      prepOrStarting,
+      totalStockQty,
+      lowStockCount,
+      openOrdersCount,
+      overseasInTransit,
+      localOrdersCount,
+    };
+  }, [allProjects, allMaterials, summary]);
+
   const totalProjects = summary?.total_projects ?? allProjects.length;
 
   if (isLoading && !summary) {
     return (
       <div className="erp-content">
-        <div className="erp-empty-state">Loading executive analytics & operations metrics...</div>
+        <div className="erp-empty-state">Loading operations metrics & workflow tracking...</div>
       </div>
     );
   }
@@ -432,141 +498,104 @@ export const DashboardView: React.FC = () => {
       <div className="erp-dashboard-scroll">
 
         {errorMessage && (
-          <div style={{ color: 'var(--erp-text-error)', fontSize: '12px', padding: '6px 0' }}>
+          <div style={{ color: 'var(--erp-text-error)', fontSize: '12.5px', padding: '6px 0' }}>
             {errorMessage}
           </div>
         )}
 
-        {/* 1. Executive KPI Cards - Project Statuses */}
-        <div className="erp-kpi-grid">
-          {/* Status 1: Starting */}
+        {/* 1. Operational Command Center - 4 Clean Cards */}
+        <div className="erp-kpi-grid-4">
+          {/* Card 1: Active Sites */}
           <div className="erp-kpi-card">
             <div className="erp-kpi-header">
-              <span className="erp-kpi-label">Starting</span>
+              <span className="erp-kpi-label">Active Sites</span>
               <div className="erp-kpi-icon">
-                <PlayCircle size={15} color="#2563eb" />
+                <FolderKanban size={15} color="var(--erp-primary, #0284c7)" />
               </div>
             </div>
-            <div className="erp-kpi-body">
-              <div className="erp-kpi-value" style={{ color: statusCounts.starting > 0 ? '#2563eb' : 'inherit' }}>
-                {statusCounts.starting}
+            <div className="erp-kpi-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
+              <div className="erp-kpi-value">
+                {summary?.active_projects ?? statusCounts.inProgress}
               </div>
-              <div className="erp-kpi-sparkline">
-                <svg width="72" height="28" viewBox="0 0 72 28" fill="none">
-                  <path
-                    d="M 2 24 L 20 24 L 38 18 L 54 18 L 70 10"
-                    fill="none"
-                    stroke="#2563eb"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <circle cx="70" cy="10" r="2.5" fill="#2563eb" />
-                </svg>
+              <div style={{ fontSize: '13px', color: 'var(--erp-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                {(summary?.delayed_projects ?? statusCounts.overdue) > 0 ? (
+                  <span style={{ color: 'var(--erp-text-error, #dc2626)' }}>
+                    {summary?.delayed_projects ?? statusCounts.overdue} overdue •
+                  </span>
+                ) : null}
+                <span>{summary?.completed_projects ?? statusCounts.completed} done</span>
+                <span> • {totalProjects} total</span>
               </div>
             </div>
           </div>
 
-          {/* Status 2: In Progress */}
+          {/* Card 2: Production */}
           <div className="erp-kpi-card">
             <div className="erp-kpi-header">
-              <span className="erp-kpi-label">In Progress</span>
+              <span className="erp-kpi-label">In Production</span>
               <div className="erp-kpi-icon">
-                <TrendingUp size={15} color="#d97706" />
+                <Layers size={15} color="#0284c7" />
               </div>
             </div>
-            <div className="erp-kpi-body">
-              <div className="erp-kpi-value" style={{ color: statusCounts.inProgress > 0 ? '#d97706' : 'inherit' }}>
-                {statusCounts.inProgress}
+            <div className="erp-kpi-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
+              <div className="erp-kpi-value">
+                {operationalStats.inProduction}
               </div>
-              <div className="erp-kpi-sparkline">
-                <svg width="72" height="28" viewBox="0 0 72 28" fill="none">
-                  <path
-                    d="M 2 22 Q 18 18, 30 12 T 52 14 T 70 4"
-                    fill="none"
-                    stroke="#d97706"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                  <circle cx="70" cy="4" r="2.5" fill="#d97706" />
-                </svg>
+              <div style={{ fontSize: '13px', color: 'var(--erp-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span>{operationalStats.installingOrReady} installing • {operationalStats.prepOrStarting} prep</span>
               </div>
             </div>
           </div>
 
-          {/* Status 3: Overdue */}
+          {/* Card 3: Stock Buffers */}
           <div className="erp-kpi-card">
             <div className="erp-kpi-header">
-              <span className="erp-kpi-label">Overdue</span>
+              <span className="erp-kpi-label">Stock Buffers</span>
               <div className="erp-kpi-icon">
-                <AlertTriangle size={15} color={statusCounts.overdue > 0 ? '#dc2626' : '#64748b'} />
+                <Package size={15} color="#0284c7" />
               </div>
             </div>
-            <div className="erp-kpi-body">
-              <div className="erp-kpi-value" style={{ color: statusCounts.overdue > 0 ? 'var(--erp-text-error)' : 'inherit' }}>
-                {statusCounts.overdue}
+            <div className="erp-kpi-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
+              <div className="erp-kpi-value">
+                {allMaterials.length} SKUs
               </div>
-              <div className="erp-kpi-sparkline">
-                <svg width="72" height="28" viewBox="0 0 72 28" fill="none">
-                  <path
-                    d="M 2 24 L 22 20 L 40 16 L 56 12 L 70 6"
-                    fill="none"
-                    stroke={statusCounts.overdue > 0 ? '#ef4444' : '#94a3b8'}
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <circle cx="70" cy="6" r="2.5" fill={statusCounts.overdue > 0 ? '#ef4444' : '#94a3b8'} />
-                </svg>
+              <div style={{ fontSize: '13px', color: 'var(--erp-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                {operationalStats.lowStockCount > 0 ? (
+                  <span style={{ color: '#d97706' }}>
+                    {operationalStats.lowStockCount} low
+                  </span>
+                ) : (
+                  <span style={{ color: 'var(--erp-success, #059669)' }}>
+                    Healthy
+                  </span>
+                )}
+                <span> • {Math.round(operationalStats.totalStockQty)} units</span>
               </div>
             </div>
           </div>
 
-          {/* Status 4: Completed */}
+          {/* Card 4: Open Orders */}
           <div className="erp-kpi-card">
             <div className="erp-kpi-header">
-              <span className="erp-kpi-label">Completed</span>
+              <span className="erp-kpi-label">Open Orders</span>
               <div className="erp-kpi-icon">
-                <CheckCircle2 size={15} color="#059669" />
+                <Truck size={15} color="#0284c7" />
               </div>
             </div>
-            <div className="erp-kpi-body">
-              <div className="erp-kpi-value" style={{ color: statusCounts.completed > 0 ? '#059669' : 'inherit' }}>
-                {statusCounts.completed}
+            <div className="erp-kpi-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
+              <div className="erp-kpi-value">
+                {operationalStats.openOrdersCount}
               </div>
-              <div className="erp-kpi-sparkline">
-                <svg width="72" height="28" viewBox="0 0 72 28" fill="none">
-                  <path
-                    d="M 2 22 Q 22 18, 40 10 T 70 4"
-                    fill="none"
-                    stroke="#10b981"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                  <circle cx="70" cy="4" r="2.5" fill="#10b981" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          {/* Status 5: Cancelled */}
-          <div className="erp-kpi-card">
-            <div className="erp-kpi-header">
-              <span className="erp-kpi-label">Cancelled</span>
-              <div className="erp-kpi-icon">
-                <XCircle size={15} color={statusCounts.cancelled > 0 ? '#ef4444' : '#64748b'} />
-              </div>
-            </div>
-            <div className="erp-kpi-body">
-              <div className="erp-kpi-value" style={{ color: statusCounts.cancelled > 0 ? '#ef4444' : 'inherit' }}>
-                {statusCounts.cancelled}
-              </div>
-              <div className="erp-kpi-sparkline" style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', paddingBottom: '2px' }}>
-                <div style={{ width: '8px', height: '14px', backgroundColor: '#cbd5e1', borderRadius: '2px' }} />
-                <div style={{ width: '8px', height: '10px', backgroundColor: '#e2e8f0', borderRadius: '2px' }} />
-                <div style={{ width: '8px', height: '16px', backgroundColor: '#cbd5e1', borderRadius: '2px' }} />
-                <div style={{ width: '8px', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '2px' }} />
-                <div style={{ width: '8px', height: '22px', backgroundColor: statusCounts.cancelled > 0 ? '#ef4444' : '#94a3b8', borderRadius: '2px' }} />
+              <div style={{ fontSize: '13px', color: 'var(--erp-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                {operationalStats.overseasInTransit > 0 ? (
+                  <span>
+                    <span style={{ color: 'var(--erp-primary, #0284c7)' }}>
+                      {operationalStats.overseasInTransit} overseas
+                    </span>
+                    <span> • </span>
+                  </span>
+                ) : null}
+                <span>{operationalStats.localOrdersCount} local</span>
               </div>
             </div>
           </div>
@@ -584,53 +613,37 @@ export const DashboardView: React.FC = () => {
               </div>
 
               {/* Filter Controls Bar */}
-              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {/* Status Filter Dropdown */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span style={{ fontSize: '11.5px', color: 'var(--erp-text-muted)', fontWeight: 500 }}>Status:</span>
-                  <select
-                    className="erp-select"
-                    style={{ height: '30px', padding: '0 26px 0 8px', fontSize: '12px' }}
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                  >
-                    <option value="all">All Statuses</option>
-                    <option value="Starting">Starting</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Overdue">Overdue</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Cancelled">Cancelled</option>
-                  </select>
-                </div>
+                <select
+                  className="erp-select"
+                  style={{ height: '32px', padding: '0 28px 0 10px', fontSize: '13px' }}
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="Starting">Starting</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Overdue">Overdue</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
 
                 {/* Period Filter with Button & Dropdown / Custom Date Popup */}
-                <div ref={periodDropdownRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span style={{ fontSize: '11.5px', color: 'var(--erp-text-muted)', fontWeight: 500 }}>Period:</span>
+                <div ref={periodDropdownRef} style={{ position: 'relative' }}>
                   <button
                     type="button"
                     onClick={() => {
                       setIsPeriodMenuOpen(prev => !prev);
                       if (isCustomPopupOpen) setIsCustomPopupOpen(false);
                     }}
+                    className="erp-btn erp-btn-secondary erp-btn-sm"
                     style={{
-                      height: '30px',
+                      height: '32px',
                       padding: '0 10px',
-                      fontSize: '12px',
-                      display: 'inline-flex',
-                      alignItems: 'center',
+                      fontSize: '13px',
                       gap: '6px',
-                      cursor: 'pointer',
-                      border: '1px solid var(--erp-border, #cbd5e1)',
-                      borderRadius: '4px',
-                      backgroundColor: '#ffffff',
-                      color: 'var(--erp-text-main, #0f172a)',
                       fontWeight: 500,
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLElement).style.backgroundColor = '#f8fafc';
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLElement).style.backgroundColor = '#ffffff';
                     }}
                   >
                     <Calendar size={13} color="var(--erp-text-muted)" />
@@ -655,8 +668,8 @@ export const DashboardView: React.FC = () => {
                         zIndex: 60,
                         minWidth: isCustomPopupOpen ? '260px' : '180px',
                         backgroundColor: '#ffffff',
-                        border: '1px solid var(--erp-border, #cbd5e1)',
-                        borderRadius: '6px',
+                        border: '1px solid var(--erp-border)',
+                        borderRadius: 'var(--erp-radius-sm)',
                         padding: '6px',
                         display: 'flex',
                         flexDirection: 'column',
@@ -681,21 +694,21 @@ export const DashboardView: React.FC = () => {
                                 style={{
                                   width: '100%',
                                   padding: '7px 10px',
-                                  fontSize: '12px',
+                                  fontSize: '13px',
                                   textAlign: 'left',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'space-between',
-                                  borderRadius: '4px',
-                                  border: isSelected ? '1px solid var(--erp-border, #e2e8f0)' : '1px solid #ffffff',
-                                  backgroundColor: isSelected ? '#f1f5f9' : '#ffffff',
+                                  borderRadius: 'var(--erp-radius-xs)',
+                                  border: isSelected ? '1px solid var(--erp-border)' : '1px solid transparent',
+                                  backgroundColor: isSelected ? 'var(--erp-surface-hover)' : '#ffffff',
                                   color: isSelected ? 'var(--erp-primary)' : 'var(--erp-text-main)',
                                   fontWeight: isSelected ? 600 : 400,
                                   cursor: 'pointer',
                                   transition: 'background-color 0.15s ease',
                                 }}
                                 onMouseEnter={(e) => {
-                                  if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = '#f8fafc';
+                                  if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--erp-surface-hover)';
                                 }}
                                 onMouseLeave={(e) => {
                                   if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = '#ffffff';
@@ -707,7 +720,7 @@ export const DashboardView: React.FC = () => {
                             );
                           })}
 
-                          <div style={{ height: '1px', backgroundColor: 'var(--erp-border, #e2e8f0)', margin: '4px 0' }} />
+                          <div style={{ height: '1px', backgroundColor: 'var(--erp-border)', margin: '4px 0' }} />
 
                           {/* Custom Date Range Button */}
                           <button
@@ -721,21 +734,21 @@ export const DashboardView: React.FC = () => {
                             style={{
                               width: '100%',
                               padding: '7px 10px',
-                              fontSize: '12px',
+                              fontSize: '13px',
                               textAlign: 'left',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'space-between',
-                              borderRadius: '4px',
-                              border: datePreset === 'custom' ? '1px solid var(--erp-border, #e2e8f0)' : '1px solid #ffffff',
-                              backgroundColor: datePreset === 'custom' ? '#f1f5f9' : '#ffffff',
+                              borderRadius: 'var(--erp-radius-xs)',
+                              border: datePreset === 'custom' ? '1px solid var(--erp-border)' : '1px solid transparent',
+                              backgroundColor: datePreset === 'custom' ? 'var(--erp-surface-hover)' : '#ffffff',
                               color: datePreset === 'custom' ? 'var(--erp-primary)' : 'var(--erp-text-main)',
                               fontWeight: datePreset === 'custom' ? 600 : 400,
                               cursor: 'pointer',
                               transition: 'background-color 0.15s ease',
                             }}
                             onMouseEnter={(e) => {
-                              if (datePreset !== 'custom') (e.currentTarget as HTMLElement).style.backgroundColor = '#f8fafc';
+                              if (datePreset !== 'custom') (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--erp-surface-hover)';
                             }}
                             onMouseLeave={(e) => {
                               if (datePreset !== 'custom') (e.currentTarget as HTMLElement).style.backgroundColor = '#ffffff';
@@ -755,23 +768,20 @@ export const DashboardView: React.FC = () => {
                               justifyContent: 'space-between',
                               marginBottom: '8px',
                               paddingBottom: '6px',
-                              borderBottom: '1px solid var(--erp-border, #e2e8f0)',
+                              borderBottom: '1px solid var(--erp-border)',
                             }}
                           >
-                            <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--erp-text-main)' }}>
+                            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--erp-text-main)' }}>
                               Custom Date Range
                             </span>
                             <button
                               type="button"
+                              className="erp-btn erp-btn-secondary erp-btn-sm"
                               onClick={() => setIsCustomPopupOpen(false)}
                               style={{
-                                backgroundColor: '#f1f5f9',
-                                border: '1px solid var(--erp-border, #cbd5e1)',
-                                borderRadius: '4px',
-                                color: 'var(--erp-text-main)',
-                                fontSize: '11px',
-                                cursor: 'pointer',
-                                padding: '2px 8px',
+                                height: '26px',
+                                fontSize: '12.5px',
+                                padding: '0 8px',
                               }}
                             >
                               Presets
@@ -780,7 +790,7 @@ export const DashboardView: React.FC = () => {
 
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
                             <div>
-                              <label style={{ display: 'block', fontSize: '11px', color: 'var(--erp-text-muted)', marginBottom: '3px' }}>
+                              <label style={{ display: 'block', fontSize: '12.5px', color: 'var(--erp-text-muted)', marginBottom: '3px' }}>
                                 Start Date:
                               </label>
                               <input
@@ -788,20 +798,16 @@ export const DashboardView: React.FC = () => {
                                 className="erp-input"
                                 style={{
                                   width: '100%',
-                                  height: '30px',
+                                  height: '32px',
                                   padding: '0 8px',
-                                  fontSize: '12px',
-                                  backgroundColor: '#ffffff',
-                                  border: '1px solid var(--erp-border, #cbd5e1)',
-                                  borderRadius: '4px',
-                                  color: 'var(--erp-text-main)',
+                                  fontSize: '13px',
                                 }}
                                 value={tempStartDate}
                                 onChange={(e) => setTempStartDate(e.target.value)}
                               />
                             </div>
                             <div>
-                              <label style={{ display: 'block', fontSize: '11px', color: 'var(--erp-text-muted)', marginBottom: '3px' }}>
+                              <label style={{ display: 'block', fontSize: '12.5px', color: 'var(--erp-text-muted)', marginBottom: '3px' }}>
                                 End Date:
                               </label>
                               <input
@@ -809,13 +815,9 @@ export const DashboardView: React.FC = () => {
                                 className="erp-input"
                                 style={{
                                   width: '100%',
-                                  height: '30px',
+                                  height: '32px',
                                   padding: '0 8px',
-                                  fontSize: '12px',
-                                  backgroundColor: '#ffffff',
-                                  border: '1px solid var(--erp-border, #cbd5e1)',
-                                  borderRadius: '4px',
-                                  color: 'var(--erp-text-main)',
+                                  fontSize: '13px',
                                 }}
                                 value={tempEndDate}
                                 onChange={(e) => setTempEndDate(e.target.value)}
@@ -826,15 +828,11 @@ export const DashboardView: React.FC = () => {
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
                             <button
                               type="button"
+                              className="erp-btn erp-btn-secondary erp-btn-sm"
                               style={{
                                 height: '28px',
                                 padding: '0 10px',
-                                fontSize: '11.5px',
-                                backgroundColor: '#f1f5f9',
-                                border: '1px solid var(--erp-border, #cbd5e1)',
-                                borderRadius: '4px',
-                                color: 'var(--erp-text-main)',
-                                cursor: 'pointer',
+                                fontSize: '12.5px',
                               }}
                               onClick={() => {
                                 setIsCustomPopupOpen(false);
@@ -845,16 +843,11 @@ export const DashboardView: React.FC = () => {
                             </button>
                             <button
                               type="button"
+                              className="erp-btn erp-btn-primary erp-btn-sm"
                               style={{
                                 height: '28px',
                                 padding: '0 12px',
-                                fontSize: '11.5px',
-                                backgroundColor: 'var(--erp-primary, #0284c7)',
-                                border: 'none',
-                                borderRadius: '4px',
-                                color: '#ffffff',
-                                fontWeight: 500,
-                                cursor: 'pointer',
+                                fontSize: '12.5px',
                               }}
                               onClick={() => {
                                 if (tempStartDate && tempEndDate) {
@@ -903,9 +896,8 @@ export const DashboardView: React.FC = () => {
                         x={paddingLeft - 8}
                         y={y + 3.5}
                         textAnchor="end"
-                        fontSize="10"
+                        fontSize="11"
                         fill="#94a3b8"
-                        fontFamily="var(--erp-mono-font)"
                       >
                         {labelVal}
                       </text>
@@ -923,13 +915,13 @@ export const DashboardView: React.FC = () => {
                       {/* Active Project Volume Bar (only rendered when data exists) */}
                       {hasVolume && (
                         <rect
+                          className="erp-chart-bar"
                           x={b.barX}
                           y={b.barY}
                           width={b.barWidth}
                           height={b.barHeight}
                           rx="3"
                           fill={isHovered ? 'var(--erp-primary-hover, #0284c7)' : 'var(--erp-primary, #0369a1)'}
-                          style={{ transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)' }}
                         />
                       )}
 
@@ -939,10 +931,8 @@ export const DashboardView: React.FC = () => {
                           x={b.centerX}
                           y={b.barY - 5}
                           textAnchor="middle"
-                          fontSize="10"
-                          fontWeight="600"
+                          fontSize="11"
                           fill={isHovered ? 'var(--erp-primary)' : 'var(--erp-text-main)'}
-                          fontFamily="var(--erp-mono-font)"
                         >
                           {b.data.volume}
                         </text>
@@ -953,8 +943,7 @@ export const DashboardView: React.FC = () => {
                         x={b.centerX}
                         y={chartHeight - 8}
                         textAnchor="middle"
-                        fontSize="11"
-                        fontWeight={isHovered ? '600' : '500'}
+                        fontSize="12"
                         fill={isHovered ? 'var(--erp-text-main)' : 'var(--erp-text-muted)'}
                       >
                         {b.data.label}
@@ -984,30 +973,22 @@ export const DashboardView: React.FC = () => {
                     top: `${(Math.max(paddingTop + 10, barItems[hoveredPointIndex].barY - 35) / chartHeight) * 100}%`,
                   }}
                 >
-                  <div style={{ fontWeight: 600, color: 'var(--erp-text-main)', marginBottom: '3px' }}>
+                  <div style={{ color: 'var(--erp-text-main)', marginBottom: '3px', fontSize: '13px' }}>
                     {barItems[hoveredPointIndex].data.fullLabel}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--erp-primary)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--erp-primary)', fontSize: '13px' }}>
                     <span>Project Volume:</span>
-                    <strong style={{ fontFamily: 'var(--erp-mono-font)' }}>
+                    <span>
                       {barItems[hoveredPointIndex].data.volume} {barItems[hoveredPointIndex].data.volume === 1 ? 'Project' : 'Projects'}
-                    </strong>
+                    </span>
                   </div>
                   {statusFilter !== 'all' && (
-                    <div style={{ fontSize: '10.5px', color: 'var(--erp-text-muted)', marginTop: '2px' }}>
-                      Status: <strong style={{ color: 'var(--erp-text-main)' }}>{statusFilter}</strong>
+                    <div style={{ fontSize: '12px', color: 'var(--erp-text-muted)', marginTop: '2px' }}>
+                      Status: <span style={{ color: 'var(--erp-text-main)' }}>{statusFilter}</span>
                     </div>
                   )}
                 </div>
               )}
-            </div>
-
-            {/* Chart Summary Footnote */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', fontSize: '11px', color: 'var(--erp-text-muted)', borderTop: '1px solid var(--erp-border)', paddingTop: '8px' }}>
-              <span style={{ fontWeight: 600, color: 'var(--erp-text-main)' }}>
-                Total: {filteredProjects.length} {filteredProjects.length === 1 ? 'Project' : 'Projects'}
-                {statusFilter !== 'all' ? ` (${statusFilter})` : ''}
-              </span>
             </div>
           </div>
 
@@ -1015,8 +996,16 @@ export const DashboardView: React.FC = () => {
           <div className="erp-chart-card">
             <div className="erp-chart-header">
               <div className="erp-chart-title">
-                <span>Workflow & Lifecycle Distribution</span>
+                <span>Workflow Stages</span>
               </div>
+              <button
+                type="button"
+                className="erp-link-btn"
+                onClick={() => navigate({ to: '/projects' })}
+              >
+                <span>Pipeline</span>
+                <ChevronRight size={12} />
+              </button>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: '16px', alignItems: 'center' }}>
@@ -1078,10 +1067,10 @@ export const DashboardView: React.FC = () => {
                     pointerEvents: 'none',
                   }}
                 >
-                  <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--erp-text-main)', lineHeight: 1 }}>
+                  <div style={{ fontSize: '20px', fontWeight: 500, color: 'var(--erp-text-main)', lineHeight: 1 }}>
                     {totalProjects}
                   </div>
-                  <div style={{ fontSize: '10px', color: 'var(--erp-text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: '2px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--erp-text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: '2px' }}>
                     Works
                   </div>
                 </div>
@@ -1105,7 +1094,7 @@ export const DashboardView: React.FC = () => {
                       onMouseEnter={() => setHoveredStage(s.id)}
                       onMouseLeave={() => setHoveredStage(null)}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '3px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13.5px', marginBottom: '3px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span
                             style={{
@@ -1115,13 +1104,13 @@ export const DashboardView: React.FC = () => {
                               backgroundColor: s.color,
                             }}
                           />
-                          <span style={{ fontWeight: isHovered ? 600 : 500, color: 'var(--erp-text-main)' }}>
+                          <span style={{ color: 'var(--erp-text-main)' }}>
                             {s.label}
                           </span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontWeight: 600, color: 'var(--erp-text-main)' }}>{s.count}</span>
-                          <span style={{ color: 'var(--erp-text-muted)', fontSize: '10.5px' }}>
+                          <span style={{ color: 'var(--erp-text-main)' }}>{s.count}</span>
+                          <span style={{ color: 'var(--erp-text-muted)', fontSize: '12.5px' }}>
                             ({s.percent.toFixed(0)}%)
                           </span>
                         </div>
@@ -1142,29 +1131,225 @@ export const DashboardView: React.FC = () => {
                 })}
               </div>
             </div>
+          </div>
+        </div>
 
-            {/* Quick Link Footer */}
-            <div style={{ borderTop: '1px solid var(--erp-border)', paddingTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--erp-text-muted)' }}>
-              <span>{summary?.active_projects ?? 0} actively in production pipeline</span>
+        {/* 3. Operational Radar Grid (1.6fr / 1.1fr) */}
+        <div className="erp-dashboard-radar-grid" style={{ marginTop: '14px' }}>
+          {/* Left Panel: Material Shortages */}
+          <div className="erp-chart-card">
+            <div className="erp-chart-header" style={{ marginBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="erp-chart-title" style={{ fontSize: '15px' }}>
+                  Material Shortages
+                </span>
+                {(summary?.shortage_items?.length ?? 0) > 0 ? (
+                  <span style={{ color: '#dc2626', fontWeight: 600, fontSize: '13px' }}>
+                    • {summary?.shortage_items?.length} Action Required
+                  </span>
+                ) : (
+                  <span style={{ color: '#059669', fontWeight: 600, fontSize: '13px' }}>
+                    • Buffer Healthy
+                  </span>
+                )}
+              </div>
               <button
-                onClick={() => navigate({ to: '/projects' })}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: 0,
-                  color: 'var(--erp-primary)',
-                  fontWeight: 600,
-                  fontSize: '11px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '3px',
-                }}
+                type="button"
+                className="erp-link-btn"
+                onClick={() => navigate({ to: '/inventory' })}
               >
-                <span>Pipeline View</span>
+                <span>Inventory</span>
                 <ChevronRight size={12} />
               </button>
             </div>
+
+            {(!summary?.shortage_items || summary.shortage_items.length === 0) ? (
+              <div style={{ padding: '28px 12px', textAlign: 'center', color: 'var(--erp-text-muted)', fontSize: '13.5px' }}>
+                <CheckCircle2 size={24} color="#059669" style={{ margin: '0 auto 8px auto', display: 'block' }} />
+                All inventory levels are above minimum safety buffer.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {summary.shortage_items.map((item) => {
+                  const deficit = Math.max(0, item.minimum_stock - item.current_stock);
+                  const fillPct = Math.min(100, Math.round((item.current_stock / item.minimum_stock) * 100));
+                  const unitDisplay = formatUnitLabel(item.unit);
+
+                  return (
+                    <div
+                      key={item.code}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'minmax(160px, 1.8fr) minmax(130px, 1.2fr) 85px 75px',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '10px 8px',
+                        borderBottom: '1px solid var(--erp-border)',
+                        transition: 'background-color 0.15s ease',
+                        borderRadius: 'var(--erp-radius-xs)',
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--erp-surface-hover)';
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
+                      }}
+                    >
+                      {/* Name & SKU */}
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: '14.5px', fontWeight: 500, color: 'var(--erp-text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {item.name}
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--erp-text-muted)', marginTop: '1px', fontFamily: 'var(--erp-mono-font)' }}>
+                          {item.code}
+                        </div>
+                      </div>
+
+                      {/* Stock Level & Visual Progress Track */}
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12.5px', marginBottom: '4px' }}>
+                          <span style={{ color: '#dc2626', fontWeight: 600 }}>{item.current_stock} {unitDisplay}</span>
+                          <span style={{ color: 'var(--erp-text-muted)' }}>min {item.minimum_stock}</span>
+                        </div>
+                        <div className="erp-progress-track" style={{ height: '4px', backgroundColor: '#fee2e2' }}>
+                          <div
+                            className="erp-progress-fill"
+                            style={{
+                              width: `${fillPct}%`,
+                              backgroundColor: '#dc2626',
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Deficit */}
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ color: '#dc2626', fontWeight: 600, fontSize: '13.5px' }}>
+                          -{deficit} {unitDisplay}
+                        </span>
+                      </div>
+
+                      {/* Action */}
+                      <div style={{ textAlign: 'right' }}>
+                        <button
+                          type="button"
+                          className="erp-link-btn"
+                          onClick={() => navigate({ to: '/purchasing' })}
+                          style={{ fontSize: '13px' }}
+                          title="Reorder material"
+                        >
+                          <span>Reorder</span>
+                          <ChevronRight size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Right Panel: Inbound Deliveries */}
+          <div className="erp-chart-card">
+            <div className="erp-chart-header" style={{ marginBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="erp-chart-title" style={{ fontSize: '15px' }}>
+                  Inbound Deliveries
+                </span>
+                <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--erp-text-muted)' }}>
+                  • {summary?.upcoming_deliveries?.length ?? 0} Pending
+                </span>
+              </div>
+              <button
+                type="button"
+                className="erp-link-btn"
+                onClick={() => navigate({ to: '/purchasing' })}
+              >
+                <span>Purchasing</span>
+                <ChevronRight size={12} />
+              </button>
+            </div>
+
+            {(!summary?.upcoming_deliveries || summary.upcoming_deliveries.length === 0) ? (
+              <div style={{ padding: '28px 12px', textAlign: 'center', color: 'var(--erp-text-muted)', fontSize: '13.5px' }}>
+                <Truck size={24} color="#94a3b8" style={{ margin: '0 auto 8px auto', display: 'block' }} />
+                No inbound shipments scheduled.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {summary.upcoming_deliveries.map((delivery) => {
+                  const isReceiving = receivingPoId === delivery.id;
+                  const isOverseas = delivery.channel === 'Overseas';
+                  const formattedEta = formatEtaDate(delivery.expected_delivery_date);
+
+                  return (
+                    <div
+                      key={delivery.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 8px',
+                        borderBottom: '1px solid var(--erp-border)',
+                        transition: 'background-color 0.15s ease',
+                        borderRadius: 'var(--erp-radius-xs)',
+                        gap: '10px',
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--erp-surface-hover)';
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '14.5px', fontWeight: 500, color: 'var(--erp-text-main)', fontFamily: 'var(--erp-mono-font)' }}>
+                            {delivery.po_number}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '12.5px',
+                              fontWeight: 500,
+                              color: isOverseas ? 'var(--erp-primary)' : 'var(--erp-text-muted)'
+                            }}
+                          >
+                            • {delivery.channel}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '12.5px', color: 'var(--erp-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <span>{delivery.supplier_name}</span>
+                          <span> • ETA: {formattedEta}</span>
+                        </div>
+                      </div>
+
+                      <div style={{ flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          className="erp-btn erp-btn-secondary erp-btn-sm"
+                          disabled={isReceiving}
+                          onClick={() => handleQuickReceive(delivery.id)}
+                          style={{
+                            height: '28px',
+                            padding: '0 10px',
+                            fontSize: '12.5px',
+                            gap: '4px',
+                            opacity: isReceiving ? 0.7 : 1,
+                          }}
+                        >
+                          {isReceiving ? (
+                            <Loader2 size={12} className="erp-spin" />
+                          ) : (
+                            <Check size={12} />
+                          )}
+                          <span>Receive</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>

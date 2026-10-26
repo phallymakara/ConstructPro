@@ -7,7 +7,7 @@ from app.models.entities import Material, StockMovement, ProductCategory
 from app.schemas.schemas import (
     MaterialCreate, MaterialUpdate, MaterialOut,
     ProductCategoryCreate, ProductCategoryUpdate, ProductCategoryOut,
-    StockMovementCreate, StockMovementOut
+    StockMovementCreate, StockMovementBatchCreate, StockMovementOut
 )
 
 router = APIRouter()
@@ -292,3 +292,81 @@ def get_stock_movements(db: Session = Depends(get_db)):
             created_at=mov.created_at,
         ))
     return results
+
+@router.post("/movements/batch", response_model=List[StockMovementOut], status_code=status.HTTP_201_CREATED)
+def create_batch_stock_movements(payload: StockMovementBatchCreate, db: Session = Depends(get_db)):
+    if not payload.items:
+        raise HTTPException(status_code=400, detail="No items provided for stock dispatch.")
+
+    materials_map = {}
+    mov_type = payload.movement_type.strip()
+    is_stock_out = mov_type in ["Stock Out", "Issue", "Wastage"]
+
+    for item in payload.items:
+        if item.quantity <= 0:
+            raise HTTPException(status_code=400, detail=f"Invalid quantity {item.quantity}. Must be greater than 0.")
+        mat = db.query(Material).filter(Material.id == item.material_id).first()
+        if not mat:
+            raise HTTPException(status_code=404, detail=f"Material with ID {item.material_id} not found.")
+        materials_map[item.material_id] = mat
+
+        if is_stock_out:
+            available = mat.available_stock
+            if item.quantity > available:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Insufficient stock for '{mat.name}' ({mat.code}). Requested: {item.quantity} {mat.unit}, Available: {available} {mat.unit}."
+                )
+
+    ref_parts = []
+    if payload.recipient_worker:
+        ref_parts.append(f"Worker: {payload.recipient_worker.strip()}")
+    if payload.reference_note:
+        ref_parts.append(payload.reference_note.strip())
+    final_ref_note = " | ".join(ref_parts) if ref_parts else None
+
+    created_movements = []
+    for item in payload.items:
+        mat = materials_map[item.material_id]
+        if is_stock_out:
+            mat.current_stock = max(0.0, (mat.current_stock or 0.0) - item.quantity)
+            if mov_type == "Issue":
+                mat.reserved_stock = max(0.0, (mat.reserved_stock or 0.0) - item.quantity)
+        elif mov_type in ["Stock In", "Receipt", "Return"]:
+            mat.current_stock = (mat.current_stock or 0.0) + item.quantity
+        elif mov_type == "Adjustment":
+            mat.current_stock = item.quantity
+
+        movement = StockMovement(
+            material_id=mat.id,
+            project_id=payload.project_id,
+            movement_type=mov_type,
+            quantity=item.quantity,
+            unit_cost=item.unit_cost or mat.unit_cost or 0.0,
+            reference_note=final_ref_note,
+        )
+        db.add(movement)
+        db.flush()
+        db.refresh(movement)
+
+        created_movements.append(
+            StockMovementOut(
+                id=movement.id,
+                material_id=movement.material_id,
+                material_code=mat.code,
+                material_name=mat.name,
+                material_barcode=mat.barcode or mat.code,
+                material_category=mat.category,
+                material_product_type=mat.product_type,
+                material_unit=mat.unit,
+                project_id=movement.project_id,
+                movement_type=movement.movement_type,
+                quantity=movement.quantity,
+                unit_cost=movement.unit_cost or mat.unit_cost or 0.0,
+                reference_note=movement.reference_note,
+                created_at=movement.created_at,
+            )
+        )
+
+    db.commit()
+    return created_movements

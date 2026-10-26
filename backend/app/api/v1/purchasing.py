@@ -9,7 +9,7 @@ from app.models.entities import (
 )
 from app.schemas.schemas import (
     SupplierCreate, SupplierUpdate, SupplierOut,
-    PurchaseOrderCreate, PurchaseOrderOut, PurchaseOrderItemOut
+    PurchaseOrderCreate, PurchaseOrderUpdate, PurchaseOrderOut, PurchaseOrderItemOut
 )
 
 router = APIRouter()
@@ -108,6 +108,59 @@ def create_purchase_order(payload: PurchaseOrderCreate, db: Session = Depends(ge
             received_qty=0.0
         )
         db.add(po_item)
+
+    db.commit()
+    db.refresh(po)
+    return _format_po(po)
+
+@router.put("/orders/{po_id}", response_model=PurchaseOrderOut)
+def update_purchase_order(po_id: int, payload: PurchaseOrderUpdate, db: Session = Depends(get_db)):
+    po = db.query(PurchaseOrder).filter(PurchaseOrder.id == po_id).first()
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+
+    if po.status == "Received":
+        raise HTTPException(status_code=400, detail="Cannot edit a purchase order that has already been received")
+
+    if payload.po_number is not None and payload.po_number != po.po_number:
+        existing = db.query(PurchaseOrder).filter(PurchaseOrder.po_number == payload.po_number).first()
+        if existing and existing.id != po_id:
+            raise HTTPException(status_code=400, detail=f"PO number {payload.po_number} already exists")
+        po.po_number = payload.po_number
+
+    if payload.supplier_id is not None:
+        supplier = db.query(Supplier).filter(Supplier.id == payload.supplier_id).first()
+        if not supplier:
+            raise HTTPException(status_code=400, detail="Supplier not found")
+        po.supplier_id = payload.supplier_id
+
+    if payload.status is not None:
+        po.status = payload.status
+
+    if payload.expected_delivery_date is not None:
+        po.expected_delivery_date = payload.expected_delivery_date
+
+    if payload.notes is not None:
+        po.notes = payload.notes
+
+    if payload.items is not None:
+        # Clear existing items and repopulate
+        for existing_item in list(po.items):
+            db.delete(existing_item)
+        db.flush()
+
+        total_cost = 0.0
+        for item_data in payload.items:
+            total_cost += item_data.quantity * item_data.unit_cost
+            po_item = PurchaseOrderItem(
+                purchase_order_id=po.id,
+                material_id=item_data.material_id,
+                quantity=item_data.quantity,
+                unit_cost=item_data.unit_cost,
+                received_qty=0.0
+            )
+            db.add(po_item)
+        po.total_cost = round(total_cost, 2)
 
     db.commit()
     db.refresh(po)

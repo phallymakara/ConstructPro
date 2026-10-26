@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ConstructPro WMS - QR Stock Out Terminal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Kantumruy+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --bg-card: #131b2e;
+      --bg-card-hover: #1c2742;
+      --border-subtle: #243252;
+      --accent-blue: #2563eb;
+      --accent-blue-glow: #3b82f6;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --accent-green: #10b981;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --font-km: 'Kantumruy Pro', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-display: 'Chakra Petch', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-km);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* TOP INDUSTRIAL STATUS BAR */
+    header {
+      background: #060911;
+      border-bottom: 2px solid var(--border-subtle);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-icon {
+      background: var(--accent-blue);
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 700;
+      box-shadow: 0 0 15px rgba(37,99,235,0.4);
+    }
+
+    .brand-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-subtitle {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .system-status {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .scanner-beacon {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--accent-green);
+    }
+
+    .beacon-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent-green);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent-green);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* MAIN APP WORKBENCH */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 460px 1fr;
+      gap: 20px;
+      padding: 20px;
+      max-width: 1800px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    @media (max-width: 1024px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* LEFT WORKSTATION: SCANNER & PROJECT ASSIGNMENT */
+    .station-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 16px 20px;
+      background: rgba(255,255,255,0.02);
+      border-bottom: 1px solid var(--border-subtle);
+      font-weight: 700;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-body {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      flex: 1;
+    }
+
+    /* BIG SCANNER TRIGGER BOX */
+    .scan-target {
+      position: relative;
+      border: 2px dashed var(--accent-blue);
+      background: rgba(37,99,235,0.05);
+      border-radius: 14px;
+      padding: 24px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .scan-target.active-gun {
+      border-color: var(--accent-green);
+      background: rgba(16, 185, 129, 0.08);
+    }
+
+    .scan-target-icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+
+    .scan-target-title {
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-bottom: 4px;
+    }
+
+    .scan-target-desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    /* SCANNER INPUT WRAPPER */
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .input-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .barcode-input {
+      background: #090e18;
+      border: 2px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 14px 16px;
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 1.25rem;
+      font-weight: 700;
+      outline: none;
+      transition: all 0.2s ease;
+      width: 100%;
+      user-select: text;
+    }
+
+    .barcode-input:focus {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.25);
+    }
+
+    /* SIMULATOR SHORTCUT CHIPS */
+    .quick-shelf-picks {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .quick-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .chip-btn {
+      background: #182239;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 10px;
+      color: var(--text-main);
+      text-align: left;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.15s;
+    }
+
+    .chip-btn:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--accent-blue);
+      transform: translateY(-1px);
+    }
+
+    .chip-code {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--accent-blue-glow);
+      display: block;
+    }
+
+    .select-industrial {
+      background: #090e18;
+      border: 1.5px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: #fff;
+      font-size: 0.95rem;
+      outline: none;
+      width: 100%;
+      font-family: var(--font-km);
+    }
+
+    /* RIGHT WORKBENCH: LIVE PICKLIST CART */
+    .cart-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .cart-header-stats {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .stat-badge {
+      background: rgba(37, 99, 235, 0.15);
+      border: 1px solid rgba(37, 99, 235, 0.4);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent-blue-glow);
+    }
+
+    .cart-items-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: calc(100vh - 310px);
+    }
+
+    /* PICKLIST ROW (ITEM CARD) */
+    .cart-item-card {
+      background: #0d1424;
+      border: 1.5px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: auto 1fr auto auto;
+      gap: 16px;
+      align-items: center;
+      transition: all 0.2s ease;
+    }
+
+    .cart-item-card.has-error {
+      border-color: var(--accent-red);
+      background: rgba(239, 68, 68, 0.08);
+    }
+
+    /* COORDINATE BADGE */
+    .bin-badge {
+      background: #000;
+      border: 2px solid var(--accent-amber);
+      color: var(--accent-amber);
+      font-family: var(--font-mono);
+      font-weight: 800;
+      font-size: 0.95rem;
+      padding: 8px 12px;
+      border-radius: 8px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-width: 100px;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.15);
+    }
+
+    .bin-sub {
+      font-size: 0.65rem;
+      opacity: 0.7;
+      letter-spacing: 0.05em;
+    }
+
+    .item-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .item-title-row {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .item-code {
+      font-family: var(--font-mono);
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .item-name-kh {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #cbd5e1;
+    }
+
+    .stock-indicator-row {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .rem-stock-val {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--accent-green);
+    }
+
+    .rem-stock-val.negative {
+      color: var(--accent-red);
+      font-weight: 800;
+    }
+
+    /* INDUSTRIAL STEPPER */
+    .stepper-box {
+      display: flex;
+      align-items: center;
+      background: #060911;
+      border: 1.5px solid var(--border-subtle);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .step-btn {
+      width: 48px;
+      height: 48px;
+      background: #182239;
+      border: none;
+      color: #fff;
+      font-size: 1.3rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: background 0.1s;
+    }
+
+    .step-btn:active {
+      background: var(--accent-blue);
+    }
+
+    .step-input {
+      width: 68px;
+      height: 48px;
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 1.25rem;
+      font-weight: 700;
+      text-align: center;
+      outline: none;
+      user-select: text;
+    }
+
+    .unit-tag {
+      padding: 0 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .delete-btn {
+      background: transparent;
+      border: none;
+      color: #64748b;
+      cursor: pointer;
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      font-size: 1.2rem;
+      transition: all 0.15s;
+    }
+
+    .delete-btn:hover {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--accent-red);
+    }
+
+    /* CART EMPTY STATE */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+      opacity: 0.4;
+    }
+
+    /* FOOTER ACTION CHECKOUT BAR */
+    .checkout-footer {
+      background: #090e18;
+      border-top: 1px solid var(--border-subtle);
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .summary-text-block {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .summary-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .summary-total {
+      font-family: var(--font-mono);
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .dispatch-btn {
+      flex: 1;
+      max-width: 420px;
+      height: 60px;
+      background: var(--accent-blue);
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-family: var(--font-km);
+      font-size: 1.15rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      box-shadow: 0 4px 20px rgba(37,99,235,0.35);
+      transition: all 0.15s ease;
+    }
+
+    .dispatch-btn:active {
+      transform: scale(0.98);
+    }
+
+    .dispatch-btn:disabled {
+      background: #1e293b;
+      color: #64748b;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* AUDIO / VISUAL FEEDBACK TOAST */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: #1e293b;
+      border-left: 5px solid var(--accent-blue);
+      padding: 14px 20px;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      animation: slideIn 0.25s forwards;
+    }
+
+    .toast.success { border-left-color: var(--accent-green); }
+    .toast.error { border-left-color: var(--accent-red); }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- STATUS HEADER -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">CP</div>
+      <div>
+        <div class="brand-title">ConstructPro WMS</div>
+        <div class="brand-subtitle">ដកសម្ភារៈចេញពីឃ្លាំង • FAST DISPATCH TERMINAL</div>
+      </div>
+    </div>
+
+    <div class="system-status">
+      <div class="scanner-beacon">
+        <div class="beacon-dot"></div>
+        <span>USB GUN LISTENER READY</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- WORKBENCH -->
+  <main>
+    
+    <!-- LEFT PANEL: SCANNER STATION -->
+    <section class="station-panel">
+      <div class="panel-header">
+        <span>១. ស្កេន ឬ ជ្រើសរើសទំនិញ (IDENTIFICATION)</span>
+      </div>
+      <div class="panel-body">
+        
+        <!-- Big Target Card -->
+        <div class="scan-target" id="scan-target-box" onclick="focusScanner()">
+          <div class="scan-target-icon">🔫</div>
+          <div class="scan-target-title">កេះកាំភ្លើងស្កេន Barcode / QR</div>
+          <div class="scan-target-desc">Hardware Listener Active • Any-Time Scan</div>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">បញ្ចូលកូដសម្ភារៈ (Manual Input)</label>
+          <input 
+            type="text" 
+            id="barcode-input" 
+            class="barcode-input" 
+            placeholder="ស្កេនកូដ (ឧ. PRF-AL-01)..." 
+            autocomplete="off"
+            spellcheck="false"
+          >
+        </div>
+
+        <!-- QUICK SIMULATION BUTTONS -->
+        <div class="quick-shelf-picks">
+          <label class="input-label">ទំនិញឧទាហរណ៍ក្នុងឃ្លាំង (Test Simulation)</label>
+          <div class="quick-grid">
+            <button class="chip-btn" onclick="simulateScan('PRF-AL-01')">
+              <span class="chip-code">PRF-AL-01</span>
+              <span>អាលុយមីញ៉ូមប្រអប់ 6063</span>
+            </button>
+            <button class="chip-btn" onclick="simulateScan('GL-CLR-08')">
+              <span class="chip-code">GL-CLR-08</span>
+              <span>កញ្ចក់ថ្លា Tempered 8mm</span>
+            </button>
+            <button class="chip-btn" onclick="simulateScan('SIL-WS-02')">
+              <span class="chip-code">SIL-WS-02</span>
+              <span>កាវបិទ Weather Silicone</span>
+            </button>
+            <button class="chip-btn" onclick="simulateScan('AC-HNG-SS')">
+              <span class="chip-code">AC-HNG-SS</span>
+              <span>ត្រចៀកទ្វារដែក Stainless</span>
+            </button>
+          </div>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid var(--border-subtle); margin: 6px 0;">
+
+        <!-- ALLOCATION METADATA -->
+        <div class="input-group">
+          <label class="input-label">គម្រោងគោលដៅ (Destination Project)</label>
+          <select id="project-select" class="select-industrial">
+            <option value="PRJ-2026-08">PRJ-2026-08 • Vattanac Tower Ext</option>
+            <option value="PRJ-2026-14">PRJ-2026-14 • Olympia Mall Refit</option>
+            <option value="PRJ-FAB-MAIN">FAB-01 • សិក្ខាសាលាកាត់តម្លើងធំ (Fabrication)</option>
+          </select>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">ឈ្មោះជាងទទួលសម្ភារៈ (Receiver / Worker)</label>
+          <input 
+            type="text" 
+            id="worker-input" 
+            class="select-industrial" 
+            value="មាស សុខា (Sokha Meas)"
+            placeholder="បញ្ចូលឈ្មោះជាង..."
+          >
+        </div>
+
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL: DISPATCH PICKLIST CART -->
+    <section class="cart-panel">
+      <div class="panel-header">
+        <span>២. បញ្ជីសម្ភារៈត្រូវដក (BATCH PICKLIST)</span>
+        <div class="cart-header-stats">
+          <div class="stat-badge" id="line-count-badge">0 មុខទំនិញ</div>
+        </div>
+      </div>
+
+      <div class="cart-items-container" id="cart-list">
+        <!-- EMPTY STATE -->
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon">📦</div>
+          <h3 style="font-size: 1.1rem; color: #fff; margin-bottom: 6px;">មិនទាន់មានសម្ភារៈនៅក្នុងបញ្ជីនៅឡើយ</h3>
+          <p style="font-size: 0.85rem;">សូមស្កេន QR Code ឬចុចលើទំនិញគំរូខាងឆ្វេងដើម្បីចាប់ផ្តើម</p>
+        </div>
+      </div>
+
+      <!-- CHECKOUT CONTROL FOOTER -->
+      <footer class="checkout-footer">
+        <div class="summary-text-block">
+          <div class="summary-label">បរិមាណដកចេញសរុប (Total Units)</div>
+          <div class="summary-total" id="total-qty-disp">0.00</div>
+        </div>
+
+        <button class="dispatch-btn" id="dispatch-submit-btn" disabled onclick="handleConfirmDispatch()">
+          <span>🚀 បញ្ជាក់ការកាត់ស្តុកចេញ (DISPATCH)</span>
+        </button>
+      </footer>
+    </section>
+
+  </main>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    // 1. MASTER WAREHOUSE INVENTORY MOCK DATABASE
+    const INVENTORY = {
+      "PRF-AL-01": { code: "PRF-AL-01", nameKh: "អាលុយមីញ៉ូមប្រអប់ 6063", location: "R01-B01-L02", stock: 130.0, unit: "m" },
+      "GL-CLR-08": { code: "GL-CLR-08", nameKh: "កញ្ចក់ថ្លា Tempered 8mm", location: "R02-A03-L01", stock: 12.0, unit: "sq_m" },
+      "SIL-WS-02": { code: "SIL-WS-02", nameKh: "កាវបិទ Weatherproof Silicone", location: "R04-C02-L04", stock: 48.0, unit: "pcs" },
+      "AC-HNG-SS": { code: "AC-HNG-SS", nameKh: "ត្រចៀកទ្វារ Stainless 304", location: "R05-A01-L03", stock: 250.0, unit: "pcs" }
+    };
+
+    let cart = [];
+
+    // 2. SYNTHESIZED AUDIO ENGINE (Web Audio API)
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function playBeep(type = "success") {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      if (type === "success") {
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+        osc.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.08); // A6
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + 0.1);
+      } else {
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + 0.25);
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+      }
+    }
+
+    // 3. HARDWARE BARCODE GUN LISTENER (KEYSTROKE TRAPPER)
+    const barcodeInput = document.getElementById("barcode-input");
+    let scanBuffer = "";
+    let lastKeyTime = Date.now();
+
+    window.addEventListener("keydown", (e) => {
+      // Don't intercept if user is typing in worker name or project dropdown
+      if (e.target.id === "worker-input") return;
+
+      const currentTime = Date.now();
+      
+      // Hardware barcode scanners send characters in rapid succession (< 35ms)
+      if (currentTime - lastKeyTime > 100) {
+        scanBuffer = "";
+      }
+      lastKeyTime = currentTime;
+
+      if (e.key === "Enter") {
+        if (scanBuffer.length > 2) {
+          processBarcode(scanBuffer.trim());
+          scanBuffer = "";
+          e.preventDefault();
+        } else if (document.activeElement === barcodeInput && barcodeInput.value.trim()) {
+          processBarcode(barcodeInput.value.trim());
+          barcodeInput.value = "";
+          e.preventDefault();
+        }
+      } else if (e.key.length === 1) {
+        scanBuffer += e.key;
+      }
+    });
+
+    barcodeInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (barcodeInput.value.trim()) {
+          processBarcode(barcodeInput.value.trim());
+          barcodeInput.value = "";
+        }
+      }
+    });
+
+    function focusScanner() {
+      barcodeInput.focus();
+    }
+
+    function simulateScan(code) {
+      processBarcode(code);
+    }
+
+    // 4. INVENTORY LOGIC & CART AGGREGATION
+    function processBarcode(rawCode) {
+      const code = rawCode.toUpperCase();
+      const product = INVENTORY[code];
+
+      if (!product) {
+        playBeep("error");
+        showToast(`មិនស្គាល់កូដទំនិញ៖ ${code}`, "error");
+        return;
+      }
+
+      // Check if already in cart
+      const existing = cart.find(item => item.code === code);
+      if (existing) {
+        if (existing.qty + 1 <= product.stock) {
+          existing.qty += 1;
+          playBeep("success");
+          showToast(`បានបន្ថែម +1 លើ ${code}`, "success");
+        } else {
+          playBeep("error");
+          showToast(`ស្តុកមិនគ្រប់គ្រាន់សម្រាប់ ${code}! (មានតែ ${product.stock})`, "error");
+        }
+      } else {
+        cart.unshift({
+          code: product.code,
+          nameKh: product.nameKh,
+          location: product.location,
+          stock: product.stock,
+          unit: product.unit,
+          qty: 1
+        });
+        playBeep("success");
+        showToast(`បានស្កេន៖ ${product.nameKh}`, "success");
+      }
+
+      renderCart();
+    }
+
+    function updateQty(code, delta) {
+      const item = cart.find(i => i.code === code);
+      if (!item) return;
+
+      const nextVal = Math.round((item.qty + delta) * 100) / 100;
+      if (nextVal <= 0) {
+        removeItem(code);
+        return;
+      }
+
+      item.qty = nextVal;
+      renderCart();
+    }
+
+    function setManualQty(code, value) {
+      const item = cart.find(i => i.code === code);
+      if (!item) return;
+      const num = parseFloat(value) || 0;
+      item.qty = num;
+      renderCart();
+    }
+
+    function removeItem(code) {
+      cart = cart.filter(i => i.code !== code);
+      renderCart();
+    }
+
+    // 5. RENDER CART & ENFORCE INDUSTRIAL SAFEGUARDS
+    function renderCart() {
+      const container = document.getElementById("cart-list");
+      const emptyState = document.getElementById("empty-state");
+      const lineCountBadge = document.getElementById("line-count-badge");
+      const totalQtyDisp = document.getElementById("total-qty-disp");
+      const dispatchBtn = document.getElementById("dispatch-submit-btn");
+
+      lineCountBadge.innerText = `${cart.length} មុខទំនិញ`;
+
+      if (cart.length === 0) {
+        container.innerHTML = "";
+        container.appendChild(emptyState);
+        emptyState.style.display = "flex";
+        totalQtyDisp.innerText = "0.00";
+        dispatchBtn.disabled = true;
+        return;
+      }
+
+      emptyState.style.display = "none";
+      let totalUnits = 0;
+      let hasOverStockError = false;
+
+      let html = "";
+      cart.forEach(item => {
+        const remaining = item.stock - item.qty;
+        const isError = remaining < 0;
+        if (isError) hasOverStockError = true;
+        totalUnits += item.qty;
+
+        html += `
+          <div class="cart-item-card ${isError ? 'has-error' : ''}">
+            <div class="bin-badge">
+              <span class="bin-sub">SHELF LOC</span>
+              ${item.location}
+            </div>
+
+            <div class="item-info">
+              <div class="item-title-row">
+                <span class="item-code">${item.code}</span>
+                <span class="item-name-kh">${item.nameKh}</span>
+              </div>
+              <div class="stock-indicator-row">
+                <span>ស្តុកមាន៖ <strong>${item.stock} ${item.unit}</strong></span>
+                <span>•</span>
+                <span>នៅសល់បន្ទាប់ពីដក៖ <span class="rem-stock-val ${isError ? 'negative' : ''}">${remaining.toFixed(1)} ${item.unit}</span></span>
+                ${isError ? `<span style="color:var(--accent-red);font-weight:700;">[ លើសស្តុក! ]</span>` : ''}
+              </div>
+            </div>
+
+            <div class="stepper-box">
+              <button class="step-btn" onclick="updateQty('${item.code}', -1)">−</button>
+              <input 
+                type="number" 
+                class="step-input" 
+                value="${item.qty}" 
+                step="any"
+                onchange="setManualQty('${item.code}', this.value)"
+              >
+              <button class="step-btn" onclick="updateQty('${item.code}', 1)">+</button>
+              <div class="unit-tag">${item.unit}</div>
+            </div>
+
+            <button class="delete-btn" onclick="removeItem('${item.code}')" title="លុបចេញ">✕</button>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+      totalQtyDisp.innerText = totalUnits.toFixed(2);
+
+      // Disable submission if negative stock or empty
+      dispatchBtn.disabled = hasOverStockError || cart.length === 0 || totalUnits <= 0;
+    }
+
+    function handleConfirmDispatch() {
+      const project = document.getElementById("project-select").value;
+      const worker = document.getElementById("worker-input").value;
+
+      if (!worker.trim()) {
+        playBeep("error");
+        showToast("សូមបញ្ចូលឈ្មោះជាងដែលមកដកសម្ភារៈ!", "error");
+        return;
+      }
+
+      playBeep("success");
+      showToast(`បានបញ្ជាក់ការកាត់ស្តុកជោគជ័យ! បញ្ជូនទៅគម្រោង ${project}`, "success");
+      
+      // Reset after successful transaction
+      cart = [];
+      renderCart();
+    }
+
+    function showToast(msg, type = "success") {
+      const container = document.getElementById("toast-container");
+      const toast = document.createElement("div");
+      toast.className = `toast ${type}`;
+      toast.innerText = msg;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.remove();
+      }, 3000);
+    }
+  </script>
+</body>
+</html>

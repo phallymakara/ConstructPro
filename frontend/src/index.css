@@ -8,7 +8,7 @@
 
 /* ConstructPro Theme - Clean Enterprise Design System */
 :root {
-  --erp-font: 'Calibri Bold', Calibri, Carlito, 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --erp-font: Calibri, Carlito, 'Kantumruy Pro', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --erp-mono-font: 'JetBrains Mono', SFMono-Regular, Consolas, monospace;
 
   /* Radii - Modern rounded corners */
@@ -22,8 +22,12 @@
   --erp-radius-pill: 9999px;
 
   /* Smooth Transition Easings */
-  --erp-transition-fast: 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-  --erp-transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  --erp-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --erp-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --erp-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --erp-transition-instant: 0.1s cubic-bezier(0.16, 1, 0.3, 1);
+  --erp-transition-fast: 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  --erp-transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   --erp-transition-smooth: 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Palette */
@@ -117,7 +121,7 @@
 @keyframes erpModalFadeIn {
   from {
     opacity: 0;
-    transform: scale(0.985) translateY(5px);
+    transform: scale(0.985) translateY(6px);
   }
   to {
     opacity: 1;
@@ -128,7 +132,7 @@
 @keyframes erpDrawerSlideIn {
   from {
     opacity: 0;
-    transform: translateX(6px);
+    transform: translateX(8px);
   }
   to {
     opacity: 1;
@@ -139,11 +143,31 @@
 @keyframes erpDropdownFade {
   from {
     opacity: 0;
-    transform: translateY(-4px) scale(0.98);
+    transform: translateY(-4px) scale(0.97);
   }
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes erpTooltipFade {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -115%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -120%) scale(1);
+  }
+}
+
+@keyframes erpPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
   }
 }
 
@@ -157,6 +181,7 @@ html {
 *,
 *::before,
 *::after,
+::placeholder,
 input,
 button,
 select,
@@ -482,6 +507,95 @@ body {
   border: none;
 }
 
+/* Clean View Toggle (Table / Grouped in Toolbar) */
+.erp-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--erp-border);
+  border-radius: var(--erp-radius-sm);
+  background-color: var(--erp-surface);
+  height: 38px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.erp-view-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0 13px;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  background-color: transparent;
+  color: var(--erp-text-muted);
+  transition: background-color 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+
+.erp-view-toggle-btn:not(:last-child) {
+  border-right: 1px solid var(--erp-border);
+}
+
+.erp-view-toggle-btn:hover:not(.active) {
+  color: var(--erp-text-main);
+  background-color: var(--erp-bg);
+}
+
+.erp-view-toggle-btn.active {
+  background-color: var(--erp-primary);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* Modern Clean Segmented Control */
+.erp-segmented-control {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  background-color: #f1f5f9;
+  border: 1px solid var(--erp-border);
+  border-radius: var(--erp-radius-sm);
+  gap: 2px;
+  height: 38px;
+  box-sizing: border-box;
+}
+
+.erp-segmented-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  font-size: 13.5px;
+  font-family: inherit;
+  font-weight: 500;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  background-color: transparent;
+  color: var(--erp-text-muted);
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.erp-segmented-btn:hover:not(.active) {
+  color: var(--erp-text-main);
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+.erp-segmented-btn.active {
+  background-color: #ffffff;
+  color: var(--erp-text-main);
+  border-color: #cbd5e1;
+  font-weight: 600;
+}
+
 /* Buttons - Rounded with smooth micro-interactions */
 .erp-btn {
   display: inline-flex;
@@ -625,6 +739,29 @@ body {
   padding-left: 36px;
 }
 
+/* Consistent font family, size, weight, and color across all placeholders */
+::placeholder,
+::-webkit-input-placeholder,
+::-moz-placeholder,
+:-ms-input-placeholder {
+  font-family: var(--erp-font) !important;
+  font-size: 14.5px;
+  font-weight: 400 !important;
+  color: var(--erp-text-light);
+  opacity: 1;
+}
+
+.erp-input::placeholder,
+textarea.erp-input::placeholder,
+input::placeholder,
+textarea::placeholder {
+  font-family: var(--erp-font) !important;
+  font-size: 14.5px;
+  font-weight: 400 !important;
+  color: var(--erp-text-light);
+  opacity: 1;
+}
+
 .erp-select {
   height: 38px;
   border: 1px solid var(--erp-border);
@@ -728,8 +865,8 @@ textarea.erp-input {
   background-color: var(--erp-bg);
   border-bottom: 1px solid var(--erp-border);
   padding: 11px 14px;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 13.5px;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--erp-text-muted);
@@ -739,7 +876,8 @@ textarea.erp-input {
 .erp-table td {
   padding: 11px 14px;
   border-bottom: 1px solid var(--erp-border);
-  font-size: 14.5px;
+  font-size: 15px;
+  font-weight: 400;
   color: var(--erp-text-main);
   vertical-align: middle;
 }
@@ -764,7 +902,7 @@ textarea.erp-input {
   padding: 2px 8px;
   border-radius: var(--erp-radius-pill);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.35;
   border: 1px solid transparent;
   white-space: nowrap;
@@ -1347,6 +1485,39 @@ textarea.erp-input {
   width: 100%;
 }
 
+/* 4-Column Balanced KPI Grid for Executive Command Center */
+.erp-kpi-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+@media (max-width: 1024px) {
+  .erp-kpi-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .erp-kpi-grid-4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tier 3: Matching 1.6fr / 1.1fr Lower Operational Radar Grid */
+.erp-dashboard-radar-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1.1fr;
+  gap: 14px;
+}
+
+@media (max-width: 1024px) {
+  .erp-dashboard-radar-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 960px) {
   .erp-kpi-grid {
     grid-auto-flow: column;
@@ -1384,11 +1555,11 @@ textarea.erp-input {
 }
 
 .erp-kpi-label {
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--erp-text-main);
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--erp-text-muted);
   text-transform: none;
-  letter-spacing: 0.1px;
+  letter-spacing: normal;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1415,11 +1586,11 @@ textarea.erp-input {
 }
 
 .erp-kpi-value {
-  font-size: 24px;
-  font-weight: 800;
+  font-size: 22px;
+  font-weight: 500;
   color: var(--erp-text-main);
-  letter-spacing: -0.025em;
-  line-height: 1.1;
+  letter-spacing: normal;
+  line-height: 1.2;
 }
 
 .erp-kpi-sparkline {
@@ -1577,6 +1748,92 @@ textarea.erp-input {
   z-index: 10;
   box-shadow: none !important;
   white-space: nowrap;
+  animation: erpTooltipFade 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: left 0.12s cubic-bezier(0.16, 1, 0.3, 1), top 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.erp-chart-bar {
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), fill 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.erp-chart-bar:hover {
+  opacity: 0.88;
+}
+
+/* Project Card Surface */
+.erp-project-card {
+  background-color: var(--erp-surface);
+  border: 1px solid var(--erp-border);
+  border-radius: var(--erp-radius-card);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  cursor: pointer;
+  transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: none !important;
+}
+
+.erp-project-card:hover {
+  border-color: #cbd5e1;
+}
+
+.erp-project-card:active {
+  transform: scale(0.995);
+}
+
+
+
+/* Clean inline link buttons with smooth hover chevron shift */
+.erp-link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--erp-primary);
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: color 0.18s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.erp-link-btn:hover {
+  color: var(--erp-primary-hover);
+}
+
+.erp-link-btn svg {
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.erp-link-btn:hover svg {
+  transform: translateX(2px);
+}
+
+/* Rotating Chevron Utility */
+.erp-chevron-icon {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.erp-chevron-icon.collapsed {
+  transform: rotate(-90deg);
+}
+
+.erp-chevron-icon.open {
+  transform: rotate(180deg);
+}
+
+/* Tab Panels & Dynamic Sections */
+.erp-tab-panel,
+.erp-tab-content {
+  animation: erpFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .erp-progress-track {
@@ -1591,7 +1848,20 @@ textarea.erp-input {
 .erp-progress-fill {
   height: 100%;
   border-radius: var(--erp-radius-pill);
-  transition: width 0.3s ease;
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease;
+}
+
+.erp-spin {
+  animation: erpSpin 0.9s linear infinite;
+}
+
+@keyframes erpSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1606,14 +1876,18 @@ textarea.erp-input {
   .erp-modal-overlay,
   .erp-drawer,
   .erp-dropdown-menu,
+  .erp-chart-tooltip,
   .erp-btn,
   .erp-btn-icon,
+  .erp-link-btn,
   .erp-nav-item,
   .erp-underline-tab,
   .erp-kpi-card,
   .erp-metric-card,
   .erp-chart-card,
-  .erp-table tbody tr {
+  .erp-project-card,
+  .erp-table tbody tr,
+  .erp-chevron-icon {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;

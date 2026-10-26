@@ -10,7 +10,6 @@ import {
   Building2,
   CheckCircle2,
   Briefcase,
-  AlertCircle,
   LayoutGrid,
   List,
   MoreHorizontal,
@@ -67,8 +66,6 @@ export const SalesView: React.FC = () => {
     actionLoading,
     errorMessage,
     setErrorMessage,
-    successMessage,
-    setSuccessMessage,
     searchQuery,
     setSearchQuery,
     statusFilter,
@@ -806,7 +803,7 @@ export const SalesView: React.FC = () => {
               <label className="erp-form-label">Project Name *</label>
               <input
                 type="text"
-                placeholder="Enter project name"
+                placeholder="Project Name"
                 className={`erp-input ${formErrors.project_name ? 'erp-input-error' : ''}`}
                 value={formData.project_name}
                 onChange={e => {
@@ -825,7 +822,7 @@ export const SalesView: React.FC = () => {
                 <input
                   type="text"
                   list="sales-customers-list"
-                  placeholder="Select or enter customer name"
+                  placeholder="Customer Name"
                   className="erp-input"
                   value={customerNameInput}
                   onChange={e => setCustomerNameInput(e.target.value)}
@@ -855,7 +852,7 @@ export const SalesView: React.FC = () => {
               <label className="erp-form-label">Site Location *</label>
               <input
                 type="text"
-                placeholder="Enter site location"
+                placeholder="Site Location"
                 className={`erp-input ${formErrors.location ? 'erp-input-error' : ''}`}
                 value={formData.location}
                 onChange={e => {

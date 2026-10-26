@@ -5,7 +5,6 @@ import {
   FolderKanban,
   Package,
   ShoppingCart,
-  BarChart3,
   Hammer,
   Briefcase
 } from 'lucide-react';
@@ -21,7 +20,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath }) => {
     { to: '/projects', label: 'Projects', icon: <FolderKanban className="erp-nav-item-icon" /> },
     { to: '/inventory', label: 'Inventory', icon: <Package className="erp-nav-item-icon" /> },
     { to: '/purchasing', label: 'Purchasing', icon: <ShoppingCart className="erp-nav-item-icon" /> },
-    { to: '/reports', label: 'Reports', icon: <BarChart3 className="erp-nav-item-icon" /> },
   ];
 
   return (

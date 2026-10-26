@@ -90,28 +90,34 @@ export const ReportsView: React.FC = () => {
 
       {/* Tab Panels with Dedicated Components */}
       {activeTab === 'profitability' && (
-        <ProfitabilityTab
-          profitability={profitability}
-          isLoading={isLoading}
-          totalRevenue={totalRevenue}
-          totalCosts={totalCosts}
-          totalGrossProfit={totalGrossProfit}
-          averageMargin={averageMargin}
-        />
+        <div className="erp-tab-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <ProfitabilityTab
+            profitability={profitability}
+            isLoading={isLoading}
+            totalRevenue={totalRevenue}
+            totalCosts={totalCosts}
+            totalGrossProfit={totalGrossProfit}
+            averageMargin={averageMargin}
+          />
+        </div>
       )}
 
       {activeTab === 'materials' && (
-        <MaterialUsageTab
-          materialUsage={materialUsage}
-          isLoading={isLoading}
-        />
+        <div className="erp-tab-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <MaterialUsageTab
+            materialUsage={materialUsage}
+            isLoading={isLoading}
+          />
+        </div>
       )}
 
       {activeTab === 'delays' && (
-        <DelaysTab
-          delays={delays}
-          isLoading={isLoading}
-        />
+        <div className="erp-tab-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <DelaysTab
+            delays={delays}
+            isLoading={isLoading}
+          />
+        </div>
       )}
     </div>
   );

@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from './apiClient';
 import type { Project, Customer, ProjectStatus } from '../models/types';
-import { calculateDynamicProjectStatus } from '../utils/taskProgress';
 import { getProjectTasks, calculateProjectTaskProgress } from '../utils/taskProgress';
 
 export interface SalesProjectFormData {

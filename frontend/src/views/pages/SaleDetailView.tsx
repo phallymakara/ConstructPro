@@ -3,8 +3,6 @@ import { useParams, useNavigate } from '@tanstack/react-router';
 import {
   ArrowLeft,
   Clock,
-  CheckCircle2,
-  AlertCircle,
   Save,
   User,
   FileText,
@@ -180,7 +178,7 @@ export const SaleDetailView: React.FC = () => {
       let initialStatus: ProjectStatus = 'Draft';
       if (proj.source === 'sales_won' || proj.status === 'Closed Won' || proj.status === 'Incoming Project' || proj.status === 'Accepted' || proj.status === 'Completed') {
         initialStatus = 'Closed Won';
-      } else if (proj.status === 'In Progress' || proj.status === 'Inprogress') {
+      } else if (proj.status === 'In Progress' || (proj.status as string) === 'Inprogress') {
         initialStatus = 'In Progress';
       } else if (proj.status === 'Closed Lost') {
         initialStatus = 'Closed Lost';
@@ -523,6 +521,7 @@ export const SaleDetailView: React.FC = () => {
           {/* TAB 1: CUSTOMER INFO */}
           {activeTab === 'customer_info' && (
             <div
+              className="erp-tab-content"
               style={{
                 padding: '18px 20px',
                 display: 'flex',
@@ -551,7 +550,7 @@ export const SaleDetailView: React.FC = () => {
                   <label className="erp-label">Project Name *</label>
                   <input
                     type="text"
-                    placeholder="Project title"
+                    placeholder="Project Name"
                     value={formData.project_name}
                     onChange={e => {
                       setFormData(prev => ({ ...prev, project_name: e.target.value }));
@@ -585,7 +584,7 @@ export const SaleDetailView: React.FC = () => {
                   <input
                     type="text"
                     list="customer-suggestions"
-                    placeholder="Enter or select customer name"
+                    placeholder="Customer Name"
                     value={formData.customer_name}
                     onChange={e => {
                       const val = e.target.value;
@@ -737,7 +736,7 @@ export const SaleDetailView: React.FC = () => {
                   <label className="erp-label">Sales Person *</label>
                   <input
                     type="text"
-                    placeholder="Salesperson name"
+                    placeholder="Salesperson Name"
                     value={formData.sales_person}
                     onChange={e => {
                       setFormData(prev => ({ ...prev, sales_person: e.target.value }));
@@ -758,7 +757,7 @@ export const SaleDetailView: React.FC = () => {
                   <label className="erp-label">Site Location *</label>
                   <input
                     type="text"
-                    placeholder="Street / District, City"
+                    placeholder="Site Location"
                     value={formData.location}
                     onChange={e => {
                       setFormData(prev => ({ ...prev, location: e.target.value }));
@@ -799,7 +798,7 @@ export const SaleDetailView: React.FC = () => {
                   <label className="erp-label">Contact Person *</label>
                   <input
                     type="text"
-                    placeholder="Representative name"
+                    placeholder="Contact Person Name"
                     value={formData.contact_person}
                     onChange={e => {
                       setFormData(prev => ({ ...prev, contact_person: e.target.value }));
@@ -820,7 +819,7 @@ export const SaleDetailView: React.FC = () => {
                   <label className="erp-label">Telephone *</label>
                   <input
                     type="text"
-                    placeholder="Phone number"
+                    placeholder="Phone Number"
                     value={formData.customer_phone}
                     onChange={e => {
                       setFormData(prev => ({ ...prev, customer_phone: e.target.value }));
@@ -841,7 +840,7 @@ export const SaleDetailView: React.FC = () => {
                   <label className="erp-label">Email</label>
                   <input
                     type="email"
-                    placeholder="Email address"
+                    placeholder="Email Address"
                     value={formData.customer_email}
                     onChange={e => setFormData(prev => ({ ...prev, customer_email: e.target.value }))}
                     className="erp-input"
@@ -869,7 +868,7 @@ export const SaleDetailView: React.FC = () => {
                   <label className="erp-label">Customer Address</label>
                   <input
                     type="text"
-                    placeholder="Office or delivery address"
+                    placeholder="Delivery or Billing Address"
                     value={formData.customer_address}
                     onChange={e => setFormData(prev => ({ ...prev, customer_address: e.target.value }))}
                     className="erp-input"
@@ -964,7 +963,7 @@ export const SaleDetailView: React.FC = () => {
                   </span>
                 </div>
                 <textarea
-                  placeholder="Special customer specifications, requirements, or meeting notes..."
+                  placeholder="Project Notes and Requirements"
                   value={formData.notes}
                   onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                   className="erp-input"
@@ -977,7 +976,7 @@ export const SaleDetailView: React.FC = () => {
 
           {/* TAB 2: DOCUMENT */}
           {activeTab === 'document' && (
-            <div style={{ padding: '0', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}>
+            <div className="erp-tab-content" style={{ padding: '0', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}>
               <div style={{ overflowX: 'auto', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <table
                   className="erp-table"
@@ -1101,7 +1100,7 @@ export const SaleDetailView: React.FC = () => {
               <input
                 type="text"
                 required
-                placeholder="Document title or reference"
+                placeholder="Document Title or Reference"
                 className="erp-input"
                 value={newDoc.name}
                 onChange={e => setNewDoc({ ...newDoc, name: e.target.value })}

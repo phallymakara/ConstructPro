@@ -11,6 +11,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { Modal } from './Modal';
+import jsQR from 'jsqr';
 import type { Material } from '../../models/types';
 
 interface BarcodeMovementModalProps {
@@ -24,6 +25,8 @@ interface BarcodeMovementModalProps {
     notes?: string
   ) => Promise<boolean>;
   actionLoading: boolean;
+  initialMaterial?: Material | null;
+  initialMode?: 'Stock In' | 'Stock Out';
 }
 
 export const BarcodeMovementModal: React.FC<BarcodeMovementModalProps> = ({
@@ -32,6 +35,8 @@ export const BarcodeMovementModal: React.FC<BarcodeMovementModalProps> = ({
   findMaterialByBarcode,
   recordStockMovement,
   actionLoading,
+  initialMaterial = null,
+  initialMode = 'Stock Out',
 }) => {
   const [movementMode, setMovementMode] = useState<'Stock In' | 'Stock Out'>('Stock In');
   const [barcodeInput, setBarcodeInput] = useState<string>('');
@@ -55,8 +60,15 @@ export const BarcodeMovementModal: React.FC<BarcodeMovementModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setBarcodeInput('');
-      setScannedMaterial(null);
+      if (initialMaterial) {
+        setScannedMaterial(initialMaterial);
+        setBarcodeInput(initialMaterial.barcode || initialMaterial.code);
+        setMovementMode(initialMode);
+      } else {
+        setBarcodeInput('');
+        setScannedMaterial(null);
+        setMovementMode('Stock In');
+      }
       setQuantity(1);
       setReferenceNote('');
       setErrorMessage(null);
@@ -67,7 +79,7 @@ export const BarcodeMovementModal: React.FC<BarcodeMovementModalProps> = ({
     } else {
       stopCamera();
     }
-  }, [isOpen]);
+  }, [isOpen, initialMaterial, initialMode]);
 
   // Clean up camera on unmount
   useEffect(() => {
@@ -91,6 +103,10 @@ export const BarcodeMovementModal: React.FC<BarcodeMovementModalProps> = ({
   const startCamera = async () => {
     setCameraError(null);
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera access requires a secure connection (HTTPS). Please ensure you are opening the HTTPS link.');
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
       });
@@ -101,40 +117,83 @@ export const BarcodeMovementModal: React.FC<BarcodeMovementModalProps> = ({
       }
       setIsCameraActive(true);
 
-      // Setup BarcodeDetector if natively supported
-      if ('BarcodeDetector' in window) {
-        const barcodeDetector = new (window as any).BarcodeDetector({
-          formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'qr_code', 'upc_a', 'upc_e'],
-        });
+      // Hidden canvas for frame decoding (supports iOS Safari & all mobile devices)
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-        scanIntervalRef.current = setInterval(async () => {
-          if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
-            try {
-              const barcodes = await barcodeDetector.detect(videoRef.current);
-              if (barcodes.length > 0) {
-                const detectedCode = barcodes[0].rawValue;
-                if (detectedCode) {
-                  handleCodeDetected(detectedCode);
-                }
-              }
-            } catch {}
-          }
-        }, 500);
+      let barcodeDetector: any = null;
+      if ('BarcodeDetector' in window) {
+        try {
+          barcodeDetector = new (window as any).BarcodeDetector({
+            formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'qr_code', 'upc_a', 'upc_e'],
+          });
+        } catch {
+          barcodeDetector = null;
+        }
       }
+
+      scanIntervalRef.current = setInterval(async () => {
+        if (!videoRef.current || videoRef.current.readyState < 2) {
+          return;
+        }
+
+        // 1. Try native BarcodeDetector if available
+        if (barcodeDetector) {
+          try {
+            const barcodes = await barcodeDetector.detect(videoRef.current);
+            if (barcodes.length > 0 && barcodes[0].rawValue) {
+              handleCodeDetected(barcodes[0].rawValue);
+              return;
+            }
+          } catch {}
+        }
+
+        // 2. jsQR canvas fallback (works reliably on iOS and Android)
+        if (ctx && videoRef.current.videoWidth > 0 && videoRef.current.videoHeight > 0) {
+          try {
+            const w = videoRef.current.videoWidth;
+            const h = videoRef.current.videoHeight;
+            canvas.width = w;
+            canvas.height = h;
+            ctx.drawImage(videoRef.current, 0, 0, w, h);
+            const imgData = ctx.getImageData(0, 0, w, h);
+            const decoded = jsQR(imgData.data, imgData.width, imgData.height, {
+              inversionAttempts: 'dontInvert',
+            });
+            if (decoded && decoded.data) {
+              handleCodeDetected(decoded.data);
+              return;
+            }
+          } catch {}
+        }
+      }, 350);
     } catch (err: any) {
       setCameraError(err.message || 'Unable to access device camera.');
       setIsCameraActive(false);
     }
   };
 
+  const extractCode = (input: string): string => {
+    let val = input.trim();
+    if (val.includes('?') || val.startsWith('http://') || val.startsWith('https://')) {
+      try {
+        const url = new URL(val, window.location.origin);
+        const param = url.searchParams.get('stockout') || url.searchParams.get('scan') || url.searchParams.get('code') || url.searchParams.get('barcode');
+        if (param) return param.trim();
+      } catch {}
+    }
+    return val;
+  };
+
   const handleCodeDetected = (code: string) => {
-    setBarcodeInput(code);
-    lookupBarcode(code);
+    const cleanCode = extractCode(code);
+    setBarcodeInput(cleanCode);
+    lookupBarcode(cleanCode);
     stopCamera();
   };
 
   const lookupBarcode = async (codeToLookup: string) => {
-    const trimmed = codeToLookup.trim();
+    const trimmed = extractCode(codeToLookup);
     if (!trimmed) return;
 
     setIsSearching(true);
@@ -277,7 +336,7 @@ export const BarcodeMovementModal: React.FC<BarcodeMovementModalProps> = ({
                 value={barcodeInput}
                 onChange={e => setBarcodeInput(e.target.value)}
                 onKeyDown={handleInputKeyDown}
-                style={{ width: '100%', fontFamily: 'monospace', fontWeight: 600 }}
+                style={{ width: '100%' }}
               />
             </div>
 

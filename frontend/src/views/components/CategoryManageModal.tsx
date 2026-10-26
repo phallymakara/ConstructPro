@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, Check, X, FolderTree } from 'lucide-react';
+import { Plus, Edit2, Trash2, Check, X } from 'lucide-react';
 import { Modal } from './Modal';
 import type { ProductCategory, ProductCategoryFormData } from '../../models/types';
 
@@ -205,7 +205,7 @@ export const CategoryManageModal: React.FC<CategoryManageModalProps> = ({
                               )}
                             </div>
                           ) : (
-                            <span style={{ fontWeight: 600, color: 'var(--erp-text-main)' }}>
+                            <span style={{ fontSize: '15px', color: 'var(--erp-text-main)' }}>
                               {cat.name}
                             </span>
                           )}
@@ -219,11 +219,11 @@ export const CategoryManageModal: React.FC<CategoryManageModalProps> = ({
                               value={editDesc}
                               onChange={e => setEditDesc(e.target.value)}
                               placeholder="Description"
-                              style={{ padding: '4px 8px', fontSize: '12.5px' }}
+                              style={{ padding: '4px 8px', fontSize: '14px' }}
                             />
                           ) : (
-                            <span style={{ color: 'var(--erp-text-muted)', fontSize: '12.5px' }}>
-                              {cat.description || '-'}
+                            <span style={{ color: 'var(--erp-text-muted)', fontSize: '14px' }}>
+                              {cat.description || '—'}
                             </span>
                           )}
                         </td>
@@ -231,12 +231,10 @@ export const CategoryManageModal: React.FC<CategoryManageModalProps> = ({
                         <td style={{ textAlign: 'center' }}>
                           <span
                             style={{
-                              fontSize: '11.5px',
+                              fontSize: '13.5px',
                               padding: '2px 8px',
                               borderRadius: 'var(--erp-radius-sm)',
-                              backgroundColor: 'var(--erp-surface-hover)',
                               color: 'var(--erp-text-main)',
-                              fontWeight: 600,
                             }}
                           >
                             {cat.product_count || 0}

@@ -32,12 +32,9 @@ def init_db(retries: int = 10, delay: int = 2):
                     count_res = conn.execute(text("SELECT count(*) FROM product_categories")).scalar()
                     if count_res == 0:
                         default_categories = [
-                            ("Profiles", "Aluminium profiles, window & door frames, tracks"),
-                            ("Glass", "Tempered, laminated, double-glazed & clear glass"),
-                            ("Hardware", "Locks, handles, hinges, multi-point gears & rollers"),
-                            ("Rubber & Seals", "EPDM weather seals, glazing rubber, silicone"),
-                            ("Accessories", "Screws, anchors, corner connectors & end caps"),
-                            ("Panels", "Aluminium composite panels, louvers & infill sheets"),
+                            ("ដែក", "ដែក អាលុយមីញ៉ូម និងស៊ុមទ្វារបង្អួច (Steel & Aluminium Profiles)"),
+                            ("កាវបិទ", "កាវស៊ីលីកូន និងកាវបិទភ្ជាប់ (Silicone & Adhesives)"),
+                            ("កញ្ចក់", "កញ្ចក់សុវត្ថិភាព កញ្ចក់ថ្លា និងកញ្ចក់បន្ទះ (Glass panels)"),
                         ]
                         for name, desc in default_categories:
                             conn.execute(

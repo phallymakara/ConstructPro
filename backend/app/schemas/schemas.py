@@ -108,6 +108,18 @@ class StockMovementCreate(BaseModel):
     unit_cost: Optional[float] = 0.0
     reference_note: Optional[str] = None
 
+class StockMovementItem(BaseModel):
+    material_id: int
+    quantity: float
+    unit_cost: Optional[float] = 0.0
+
+class StockMovementBatchCreate(BaseModel):
+    movement_type: str = "Stock Out"
+    project_id: Optional[int] = None
+    recipient_worker: Optional[str] = None
+    reference_note: Optional[str] = None
+    items: List[StockMovementItem]
+
 class StockMovementOut(BaseModel):
     id: int
     material_id: int
@@ -351,6 +363,24 @@ class QuotationOut(QuotationBase):
 
 
 # --- Dashboard KPI Schema ---
+class DashboardShortageItem(BaseModel):
+    id: int
+    code: str
+    name: str
+    category: str
+    current_stock: float
+    minimum_stock: float
+    unit: str
+
+class DashboardUpcomingDelivery(BaseModel):
+    id: int
+    po_number: str
+    supplier_name: str
+    channel: str
+    expected_delivery_date: Optional[str] = None
+    total_cost: float
+    status: str
+
 class DashboardSummaryOut(BaseModel):
     total_projects: int
     active_projects: int
@@ -362,6 +392,14 @@ class DashboardSummaryOut(BaseModel):
     projected_profit: float
     low_stock_count: int
     shortage_count: int
+    total_collected_cash: float = 0.0
+    total_receivable: float = 0.0
+    total_inventory_value: float = 0.0
+    open_po_count: int = 0
+    open_po_value: float = 0.0
+    overseas_in_transit_count: int = 0
+    shortage_items: List[DashboardShortageItem] = []
+    upcoming_deliveries: List[DashboardUpcomingDelivery] = []
 
 
 # --- Supplier Schemas ---
@@ -426,6 +464,14 @@ class PurchaseOrderCreate(BaseModel):
     expected_delivery_date: Optional[datetime] = None
     notes: Optional[str] = None
     items: List[PurchaseOrderItemCreate] = []
+
+class PurchaseOrderUpdate(BaseModel):
+    po_number: Optional[str] = None
+    supplier_id: Optional[int] = None
+    status: Optional[str] = None
+    expected_delivery_date: Optional[datetime] = None
+    notes: Optional[str] = None
+    items: Optional[List[PurchaseOrderItemCreate]] = None
 
 class PurchaseOrderOut(BaseModel):
     id: int

@@ -1,11 +1,20 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from './apiClient';
-import type { Material, MaterialFormData, StockMovement, ProductCategory, ProductCategoryFormData } from '../models/types';
+import type {
+  Material,
+  MaterialFormData,
+  StockMovement,
+  ProductCategory,
+  ProductCategoryFormData,
+  Project,
+  StockMovementBatchPayload,
+} from '../models/types';
 
 export function useMaterialsController() {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [productTypeFilter, setProductTypeFilter] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -21,20 +30,23 @@ export function useMaterialsController() {
   const [isStockAdjustmentModalOpen, setIsStockAdjustmentModalOpen] = useState<boolean>(false);
   const [selectedMaterialForAdjust, setSelectedMaterialForAdjust] = useState<Material | null>(null);
   const [isBarcodeMovementModalOpen, setIsBarcodeMovementModalOpen] = useState<boolean>(false);
+  const [isStockOutModalOpen, setIsStockOutModalOpen] = useState<boolean>(false);
   const [selectedMaterialForBarcodeLabel, setSelectedMaterialForBarcodeLabel] = useState<Material | null>(null);
 
   const fetchMaterials = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const [matData, catData, movData] = await Promise.all([
+      const [matData, catData, movData, projData] = await Promise.all([
         api.get<Material[]>('/materials/'),
         api.get<ProductCategory[]>('/materials/categories'),
         api.get<StockMovement[]>('/materials/movements/all'),
+        api.get<Project[]>('/projects/').catch(() => []),
       ]);
       setMaterials(matData);
       setCategories(catData);
       setMovements(movData);
+      setProjects(projData);
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to load materials catalog');
     } finally {
@@ -51,9 +63,9 @@ export function useMaterialsController() {
     if (categories.length > 0) {
       return categories.map(c => c.name);
     }
-    const defaultCats = ['Profiles', 'Glass', 'Hardware', 'Rubber & Seals', 'Accessories', 'Panels'];
+    const defaultCats = ['ដែក', 'កាវបិទ', 'កញ្ចក់'];
     const fromData = materials.map(m => m.category).filter(Boolean);
-    return Array.from(new Set([...defaultCats, ...fromData])).sort();
+    return Array.from(new Set([...defaultCats, ...fromData]));
   }, [categories, materials]);
 
   const existingProductTypes = useMemo(() => {
@@ -213,6 +225,47 @@ export function useMaterialsController() {
     }
   };
 
+  const batchStockMovement = async (payload: StockMovementBatchPayload): Promise<boolean> => {
+    setActionLoading(true);
+    setErrorMessage(null);
+    try {
+      const createdMovements = await api.post<StockMovement[]>('/materials/movements/batch', payload);
+
+      // Update local materials in real-time
+      setMaterials(prev => {
+        const qtyMap = new Map<number, number>();
+        payload.items.forEach(it => {
+          qtyMap.set(it.material_id, (qtyMap.get(it.material_id) || 0) + it.quantity);
+        });
+
+        return prev.map(m => {
+          const qty = qtyMap.get(m.id);
+          if (!qty) return m;
+          let newStock = m.current_stock;
+          const movType = payload.movement_type.trim();
+          if (movType === 'Stock Out' || movType === 'Issue' || movType === 'Wastage') {
+            newStock = Math.max(0, newStock - qty);
+          } else if (movType === 'Stock In' || movType === 'Receipt' || movType === 'Return') {
+            newStock += qty;
+          }
+          return {
+            ...m,
+            current_stock: newStock,
+            available_stock: Math.max(0, newStock - (m.reserved_stock || 0)),
+          };
+        });
+      });
+
+      setMovements(prev => [...createdMovements, ...prev]);
+      return true;
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Batch stock movement failed');
+      return false;
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const findMaterialByBarcode = async (barcodeOrCode: string): Promise<Material | null> => {
     const query = barcodeOrCode.trim().toLowerCase();
     if (!query) return null;
@@ -255,15 +308,9 @@ export function useMaterialsController() {
   const groupedInventory = useMemo(() => {
     const categoryMap = new Map<string, Map<string, Material[]>>();
 
-    // If not searching, include registered categories so newly created categories are immediately visible
-    if (!searchQuery.trim()) {
-      for (const catName of existingCategories) {
-        if (categoryFilter === 'All' || categoryFilter === catName) {
-          if (!categoryMap.has(catName)) {
-            categoryMap.set(catName, new Map<string, Material[]>());
-          }
-        }
-      }
+    // Only include empty category if user explicitly selected a specific category filter
+    if (!searchQuery.trim() && categoryFilter !== 'All') {
+      categoryMap.set(categoryFilter, new Map<string, Material[]>());
     }
 
     for (const mat of filteredMaterials) {
@@ -326,6 +373,7 @@ export function useMaterialsController() {
     materials: filteredMaterials,
     allMaterials: materials,
     categories,
+    projects,
     groupedInventory,
     totalCount: materials.length,
     filteredCount: filteredMaterials.length,
@@ -345,6 +393,7 @@ export function useMaterialsController() {
     isStockAdjustmentModalOpen,
     selectedMaterialForAdjust,
     isBarcodeMovementModalOpen,
+    isStockOutModalOpen,
     selectedMaterialForBarcodeLabel,
     setCategoryFilter,
     setProductTypeFilter,
@@ -356,6 +405,7 @@ export function useMaterialsController() {
     setIsStockAdjustmentModalOpen,
     setSelectedMaterialForAdjust,
     setIsBarcodeMovementModalOpen,
+    setIsStockOutModalOpen,
     setSelectedMaterialForBarcodeLabel,
     setErrorMessage,
     createCategory,
@@ -366,6 +416,7 @@ export function useMaterialsController() {
     deleteMaterial,
     adjustStock,
     recordStockMovement,
+    batchStockMovement,
     findMaterialByBarcode,
     refresh: fetchMaterials,
   };

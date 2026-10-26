@@ -23,6 +23,7 @@ dev = [
 [project.scripts]
 ConstructPro = "app.cli:main"
 constructpro = "app.cli:main"
+constructionpro = "app.cli:main"
 
 [build-system]
 requires = ["hatchling"]

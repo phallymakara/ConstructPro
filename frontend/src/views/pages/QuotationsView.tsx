@@ -23,19 +23,21 @@ export const QuotationsView: React.FC = () => {
     convertToProject,
   } = useQuotationsController();
 
-  const [newQuote, setNewQuote] = useState<QuotationFormData>({
+  const emptyQuote: QuotationFormData = {
     quotation_number: '',
-    customer_id: customers[0]?.id || 1,
+    customer_id: '' as unknown as number,
     status: 'Draft',
-    material_cost: 0,
-    labor_cost: 0,
-    transport_cost: 0,
-    installation_cost: 0,
-    discount_amount: 0,
-    tax_percent: 10,
+    material_cost: '' as unknown as number,
+    labor_cost: '' as unknown as number,
+    transport_cost: '' as unknown as number,
+    installation_cost: '' as unknown as number,
+    discount_amount: '' as unknown as number,
+    tax_percent: '' as unknown as number,
     valid_until: '',
     notes: '',
-  });
+  };
+
+  const [newQuote, setNewQuote] = useState<QuotationFormData>(emptyQuote);
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -64,21 +66,18 @@ export const QuotationsView: React.FC = () => {
     }
 
     setFormErrors({});
-    const success = await createQuotation(newQuote);
+    const success = await createQuotation({
+      ...newQuote,
+      customer_id: Number(newQuote.customer_id),
+      material_cost: Number(newQuote.material_cost) || 0,
+      labor_cost: Number(newQuote.labor_cost) || 0,
+      transport_cost: Number(newQuote.transport_cost) || 0,
+      installation_cost: Number(newQuote.installation_cost) || 0,
+      discount_amount: Number(newQuote.discount_amount) || 0,
+      tax_percent: Number(newQuote.tax_percent) || 0,
+    });
     if (success) {
-      setNewQuote({
-        quotation_number: '',
-        customer_id: customers[0]?.id || 1,
-        status: 'Draft',
-        material_cost: 0,
-        labor_cost: 0,
-        transport_cost: 0,
-        installation_cost: 0,
-        discount_amount: 0,
-        tax_percent: 10,
-        valid_until: '',
-        notes: '',
-      });
+      setNewQuote(emptyQuote);
     }
   };
 
@@ -115,6 +114,7 @@ export const QuotationsView: React.FC = () => {
         <button
           className="erp-btn erp-btn-primary"
           onClick={() => {
+            setNewQuote(emptyQuote);
             setFormErrors({});
             setIsCreateModalOpen(true);
           }}
@@ -217,7 +217,7 @@ export const QuotationsView: React.FC = () => {
                 <label className="erp-form-label">Quotation Number *</label>
                 <input
                   type="text"
-                  placeholder="Enter quotation number"
+                  placeholder="Quotation Number"
                   className={`erp-input ${formErrors.quotation_number ? 'erp-input-error' : ''}`}
                   value={newQuote.quotation_number}
                   onChange={e => setNewQuote({ ...newQuote, quotation_number: e.target.value })}
@@ -231,9 +231,10 @@ export const QuotationsView: React.FC = () => {
                 <label className="erp-form-label">Customer *</label>
                 <select
                   className={`erp-select ${formErrors.customer_id ? 'erp-input-error' : ''}`}
-                  value={newQuote.customer_id}
+                  value={newQuote.customer_id || ''}
                   onChange={e => setNewQuote({ ...newQuote, customer_id: Number(e.target.value) })}
                 >
+                  <option value="">Select Customer</option>
                   {customers.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
@@ -249,10 +250,10 @@ export const QuotationsView: React.FC = () => {
                 <label className="erp-form-label">Estimated Materials ($)</label>
                 <input
                   type="number"
-                  placeholder="Enter estimated material cost"
+                  placeholder="Material Cost"
                   className="erp-input"
-                  value={newQuote.material_cost}
-                  onChange={e => setNewQuote({ ...newQuote, material_cost: Number(e.target.value) })}
+                  value={newQuote.material_cost ?? ''}
+                  onChange={e => setNewQuote({ ...newQuote, material_cost: e.target.value === '' ? ('' as any) : Number(e.target.value) })}
                 />
               </div>
 
@@ -260,10 +261,10 @@ export const QuotationsView: React.FC = () => {
                 <label className="erp-form-label">Labor & Fabrication ($)</label>
                 <input
                   type="number"
-                  placeholder="Enter labor & fabrication cost"
+                  placeholder="Labor and Fabrication Cost"
                   className="erp-input"
-                  value={newQuote.labor_cost}
-                  onChange={e => setNewQuote({ ...newQuote, labor_cost: Number(e.target.value) })}
+                  value={newQuote.labor_cost ?? ''}
+                  onChange={e => setNewQuote({ ...newQuote, labor_cost: e.target.value === '' ? ('' as any) : Number(e.target.value) })}
                 />
               </div>
             </div>
@@ -273,10 +274,10 @@ export const QuotationsView: React.FC = () => {
                 <label className="erp-form-label">Transportation ($)</label>
                 <input
                   type="number"
-                  placeholder="Enter transportation cost"
+                  placeholder="Transportation Cost"
                   className="erp-input"
-                  value={newQuote.transport_cost}
-                  onChange={e => setNewQuote({ ...newQuote, transport_cost: Number(e.target.value) })}
+                  value={newQuote.transport_cost ?? ''}
+                  onChange={e => setNewQuote({ ...newQuote, transport_cost: e.target.value === '' ? ('' as any) : Number(e.target.value) })}
                 />
               </div>
 
@@ -284,10 +285,10 @@ export const QuotationsView: React.FC = () => {
                 <label className="erp-form-label">Site Installation ($)</label>
                 <input
                   type="number"
-                  placeholder="Enter site installation cost"
+                  placeholder="Site Installation Cost"
                   className="erp-input"
-                  value={newQuote.installation_cost}
-                  onChange={e => setNewQuote({ ...newQuote, installation_cost: Number(e.target.value) })}
+                  value={newQuote.installation_cost ?? ''}
+                  onChange={e => setNewQuote({ ...newQuote, installation_cost: e.target.value === '' ? ('' as any) : Number(e.target.value) })}
                 />
               </div>
             </div>
@@ -297,10 +298,10 @@ export const QuotationsView: React.FC = () => {
                 <label className="erp-form-label">Discount Amount ($)</label>
                 <input
                   type="number"
-                  placeholder="Enter discount amount"
+                  placeholder="Discount Amount"
                   className="erp-input"
-                  value={newQuote.discount_amount}
-                  onChange={e => setNewQuote({ ...newQuote, discount_amount: Number(e.target.value) })}
+                  value={newQuote.discount_amount ?? ''}
+                  onChange={e => setNewQuote({ ...newQuote, discount_amount: e.target.value === '' ? ('' as any) : Number(e.target.value) })}
                 />
               </div>
 
@@ -308,10 +309,10 @@ export const QuotationsView: React.FC = () => {
                 <label className="erp-form-label">Tax Rate (%)</label>
                 <input
                   type="number"
-                  placeholder="Enter tax percentage"
+                  placeholder="Tax Rate"
                   className="erp-input"
-                  value={newQuote.tax_percent}
-                  onChange={e => setNewQuote({ ...newQuote, tax_percent: Number(e.target.value) })}
+                  value={newQuote.tax_percent ?? ''}
+                  onChange={e => setNewQuote({ ...newQuote, tax_percent: e.target.value === '' ? ('' as any) : Number(e.target.value) })}
                 />
               </div>
             </div>
@@ -337,6 +338,7 @@ export const QuotationsView: React.FC = () => {
               <textarea
                 className="erp-input"
                 style={{ height: '50px', padding: '6px' }}
+                placeholder="Terms and Warranty Notes"
                 value={newQuote.notes}
                 onChange={e => setNewQuote({ ...newQuote, notes: e.target.value })}
               />

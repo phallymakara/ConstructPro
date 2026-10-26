@@ -280,17 +280,18 @@ export const ProjectsView: React.FC = () => {
   const [customerNameInput, setCustomerNameInput] = useState<string>('');
 
   // Add Item Form State
-  const [newItem, setNewItem] = useState<ProjectItemFormData>({
+  const initialNewItem: ProjectItemFormData = {
     product_type: 'Sliding Window 2-Track',
     description: '',
-    width_mm: 1800,
-    height_mm: 1500,
-    quantity: 1,
-    glass_specification: '6mm Clear Tempered',
-    frame_color: 'Black Powder Coated',
-    unit_estimated_cost: 250,
-    unit_selling_price: 380,
-  });
+    width_mm: '' as any,
+    height_mm: '' as any,
+    quantity: '' as any,
+    glass_specification: '',
+    frame_color: '',
+    unit_estimated_cost: 0,
+    unit_selling_price: 0,
+  };
+  const [newItem, setNewItem] = useState<ProjectItemFormData>(initialNewItem);
 
   // Material Consumption Form State
   const [consumptionInputs, setConsumptionInputs] = useState<Record<number, { consumed: number; wastage: number }>>({});
@@ -411,9 +412,9 @@ export const ProjectsView: React.FC = () => {
     if (!selectedProject) return;
 
     const errors: Record<string, string> = {};
-    if (newItem.width_mm <= 0) errors.width_mm = 'Width must be greater than 0';
-    if (newItem.height_mm <= 0) errors.height_mm = 'Height must be greater than 0';
-    if (newItem.quantity <= 0) errors.quantity = 'Quantity must be at least 1';
+    if (!newItem.width_mm || Number(newItem.width_mm) <= 0) errors.width_mm = 'Width must be greater than 0';
+    if (!newItem.height_mm || Number(newItem.height_mm) <= 0) errors.height_mm = 'Height must be greater than 0';
+    if (!newItem.quantity || Number(newItem.quantity) <= 0) errors.quantity = 'Quantity must be at least 1';
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
@@ -421,7 +422,13 @@ export const ProjectsView: React.FC = () => {
     }
 
     setFormErrors({});
-    await addItemToProject(selectedProject.id, newItem);
+    await addItemToProject(selectedProject.id, {
+      ...newItem,
+      width_mm: Number(newItem.width_mm),
+      height_mm: Number(newItem.height_mm),
+      quantity: Number(newItem.quantity),
+    });
+    setNewItem(initialNewItem);
   };
 
   const handleOpenConsumeModal = () => {
@@ -548,21 +555,8 @@ export const ProjectsView: React.FC = () => {
               return (
                 <div
                   key={proj.id}
-                  style={{
-                    backgroundColor: 'var(--erp-surface)',
-                    border: '1px solid var(--erp-border)',
-                    borderRadius: 'var(--erp-radius-card)',
-                    padding: '16px 18px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    gap: '14px',
-                    cursor: 'pointer',
-                    transition: 'border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
-                  }}
+                  className="erp-project-card"
                   onClick={() => navigate({ to: `/projects/${proj.id}` })}
-                  onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--erp-primary)')}
-                  onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--erp-border)')}
                 >
                   <div>
                     {/* Card Header: Project Number, Name, Status Badge, and Action dropdown */}
@@ -1118,6 +1112,7 @@ export const ProjectsView: React.FC = () => {
                     <button
                       className="erp-btn erp-btn-secondary erp-btn-sm"
                       onClick={() => {
+                        setNewItem(initialNewItem);
                         setFormErrors({});
                         setIsAddItemModalOpen(true);
                       }}
@@ -1293,7 +1288,7 @@ export const ProjectsView: React.FC = () => {
               <label className="erp-form-label">Project Name *</label>
               <input
                 type="text"
-                placeholder="Enter project name"
+                placeholder="Project Name"
                 className={`erp-input ${formErrors.project_name ? 'erp-input-error' : ''}`}
                 value={newProject.project_name}
                 onChange={e => {
@@ -1312,7 +1307,7 @@ export const ProjectsView: React.FC = () => {
                 <input
                   type="text"
                   list="project-customers-list"
-                  placeholder="Select or enter customer name"
+                  placeholder="Customer Name"
                   className="erp-input"
                   value={customerNameInput}
                   onChange={e => setCustomerNameInput(e.target.value)}
@@ -1346,7 +1341,7 @@ export const ProjectsView: React.FC = () => {
               <label className="erp-form-label">Site Location *</label>
               <input
                 type="text"
-                placeholder="Enter site location"
+                placeholder="Site Location"
                 className={`erp-input ${formErrors.location ? 'erp-input-error' : ''}`}
                 value={newProject.location}
                 onChange={e => {
@@ -1441,10 +1436,10 @@ export const ProjectsView: React.FC = () => {
                 <label className="erp-form-label">Width (mm) *</label>
                 <input
                   type="number"
-                  placeholder="Enter width in mm"
+                  placeholder="Width (mm)"
                   className={`erp-input ${formErrors.width_mm ? 'erp-input-error' : ''}`}
-                  value={newItem.width_mm}
-                  onChange={e => setNewItem({ ...newItem, width_mm: Number(e.target.value) })}
+                  value={newItem.width_mm ?? ''}
+                  onChange={e => setNewItem({ ...newItem, width_mm: e.target.value === '' ? ('' as any) : Number(e.target.value) })}
                 />
                 {formErrors.width_mm && <span className="erp-form-error">{formErrors.width_mm}</span>}
               </div>
@@ -1453,10 +1448,10 @@ export const ProjectsView: React.FC = () => {
                 <label className="erp-form-label">Height (mm) *</label>
                 <input
                   type="number"
-                  placeholder="Enter height in mm"
+                  placeholder="Height (mm)"
                   className={`erp-input ${formErrors.height_mm ? 'erp-input-error' : ''}`}
-                  value={newItem.height_mm}
-                  onChange={e => setNewItem({ ...newItem, height_mm: Number(e.target.value) })}
+                  value={newItem.height_mm ?? ''}
+                  onChange={e => setNewItem({ ...newItem, height_mm: e.target.value === '' ? ('' as any) : Number(e.target.value) })}
                 />
                 {formErrors.height_mm && <span className="erp-form-error">{formErrors.height_mm}</span>}
               </div>
@@ -1467,10 +1462,10 @@ export const ProjectsView: React.FC = () => {
                 <label className="erp-form-label">Quantity *</label>
                 <input
                   type="number"
-                  placeholder="Enter quantity"
+                  placeholder="Quantity"
                   className={`erp-input ${formErrors.quantity ? 'erp-input-error' : ''}`}
-                  value={newItem.quantity}
-                  onChange={e => setNewItem({ ...newItem, quantity: Number(e.target.value) })}
+                  value={newItem.quantity ?? ''}
+                  onChange={e => setNewItem({ ...newItem, quantity: e.target.value === '' ? ('' as any) : Number(e.target.value) })}
                 />
                 {formErrors.quantity && <span className="erp-form-error">{formErrors.quantity}</span>}
               </div>
@@ -1479,7 +1474,7 @@ export const ProjectsView: React.FC = () => {
                 <label className="erp-form-label">Frame Color Finish</label>
                 <input
                   type="text"
-                  placeholder="Enter frame color finish"
+                  placeholder="Frame Color Finish"
                   className="erp-input"
                   value={newItem.frame_color}
                   onChange={e => setNewItem({ ...newItem, frame_color: e.target.value })}
@@ -1491,7 +1486,7 @@ export const ProjectsView: React.FC = () => {
               <label className="erp-form-label">Glass Specification</label>
               <input
                 type="text"
-                placeholder="Enter glass specification"
+                placeholder="Glass Specification"
                 className="erp-input"
                 value={newItem.glass_specification}
                 onChange={e => setNewItem({ ...newItem, glass_specification: e.target.value })}
@@ -1553,7 +1548,7 @@ export const ProjectsView: React.FC = () => {
                       <input
                         type="number"
                         step="0.01"
-                        placeholder="Enter consumed quantity"
+                        placeholder="Consumed Quantity"
                         className="erp-input"
                         value={currentInput.consumed}
                         onChange={e =>
@@ -1570,7 +1565,7 @@ export const ProjectsView: React.FC = () => {
                       <input
                         type="number"
                         step="0.01"
-                        placeholder="Enter scrap quantity"
+                        placeholder="Scrap or Wastage Quantity"
                         className="erp-input"
                         value={currentInput.wastage}
                         onChange={e =>
@@ -1670,7 +1665,7 @@ export const ProjectsView: React.FC = () => {
               <label className="erp-form-label">Project Name *</label>
               <input
                 type="text"
-                placeholder="Enter project name"
+                placeholder="Project Name"
                 className={`erp-input ${editFormErrors.project_name ? 'erp-input-error' : ''}`}
                 value={editFormData.project_name}
                 onChange={e => {
@@ -1689,7 +1684,7 @@ export const ProjectsView: React.FC = () => {
               <label className="erp-form-label">Site Location *</label>
               <input
                 type="text"
-                placeholder="Enter site location"
+                placeholder="Site Location"
                 className={`erp-input ${editFormErrors.location ? 'erp-input-error' : ''}`}
                 value={editFormData.location}
                 onChange={e => {

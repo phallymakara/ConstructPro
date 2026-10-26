@@ -71,6 +71,7 @@ export const CustomersView: React.FC = () => {
         <button
           className="erp-btn erp-btn-primary"
           onClick={() => {
+            setNewCust({ name: '', company: '', phone: '', email: '', address: '', notes: '' });
             setFormErrors({});
             setIsCreateModalOpen(true);
           }}
@@ -141,7 +142,7 @@ export const CustomersView: React.FC = () => {
                 <label className="erp-form-label">Customer / Contact Name *</label>
                 <input
                   type="text"
-                  placeholder="Enter customer or contact name"
+                  placeholder="Customer or Contact Name"
                   className={`erp-input ${formErrors.name ? 'erp-input-error' : ''}`}
                   value={newCust.name}
                   onChange={e => setNewCust({ ...newCust, name: e.target.value })}
@@ -153,7 +154,7 @@ export const CustomersView: React.FC = () => {
                 <label className="erp-form-label">Company / Developer</label>
                 <input
                   type="text"
-                  placeholder="Enter company or developer name"
+                  placeholder="Company or Developer"
                   className="erp-input"
                   value={newCust.company}
                   onChange={e => setNewCust({ ...newCust, company: e.target.value })}
@@ -166,7 +167,7 @@ export const CustomersView: React.FC = () => {
                 <label className="erp-form-label">Phone Number</label>
                 <input
                   type="text"
-                  placeholder="Enter phone number"
+                  placeholder="Phone Number"
                   className="erp-input"
                   value={newCust.phone}
                   onChange={e => setNewCust({ ...newCust, phone: e.target.value })}
@@ -177,7 +178,7 @@ export const CustomersView: React.FC = () => {
                 <label className="erp-form-label">Email Address</label>
                 <input
                   type="email"
-                  placeholder="Enter email address"
+                  placeholder="Email Address"
                   className="erp-input"
                   value={newCust.email}
                   onChange={e => setNewCust({ ...newCust, email: e.target.value })}
@@ -189,7 +190,7 @@ export const CustomersView: React.FC = () => {
               <label className="erp-form-label">Site Delivery / Billing Address</label>
               <input
                 type="text"
-                placeholder="Enter delivery or billing address"
+                placeholder="Delivery or Billing Address"
                 className="erp-input"
                 value={newCust.address}
                 onChange={e => setNewCust({ ...newCust, address: e.target.value })}
@@ -201,7 +202,7 @@ export const CustomersView: React.FC = () => {
               <textarea
                 className="erp-input"
                 style={{ height: '50px', padding: '6px' }}
-                placeholder="Enter customer preferences or notes"
+                placeholder="Customer Preferences or Notes"
                 value={newCust.notes}
                 onChange={e => setNewCust({ ...newCust, notes: e.target.value })}
               />

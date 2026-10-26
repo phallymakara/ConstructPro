@@ -13,7 +13,6 @@ import { ProjectsView } from './views/pages/ProjectsView';
 import { ProjectWorkflowView } from './views/pages/ProjectWorkflowView';
 import { InventoryView } from './views/pages/InventoryView';
 import { PurchasingView } from './views/pages/PurchasingView';
-import { ReportsView } from './views/pages/ReportsView';
 import { SalesView } from './views/pages/SalesView';
 import { SaleDetailView } from './views/pages/SaleDetailView';
 import { useState, useEffect } from 'react';
@@ -33,7 +32,6 @@ function RootLayout() {
       '/inventory': 'Inventory Control • ConstructPro',
       '/materials': 'Inventory Control • ConstructPro',
       '/purchasing': 'Suppliers & Purchasing • ConstructPro',
-      '/reports': 'Reports & Analytics • ConstructPro',
     };
     if (currentPath.startsWith('/projects/')) {
       document.title = 'Project Workspace • ConstructPro';
@@ -123,7 +121,7 @@ const purchasingRoute = createRoute({
 const reportsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/reports',
-  component: ReportsView,
+  component: () => <Navigate to="/dashboard" replace />,
 });
 
 const saleRoute = createRoute({

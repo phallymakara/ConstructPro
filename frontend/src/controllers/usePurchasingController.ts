@@ -78,6 +78,20 @@ export function usePurchasingController() {
     }
   };
 
+  const updatePurchaseOrder = async (poId: number, data: any) => {
+    setActionLoading(true);
+    try {
+      const updated = await api.put<PurchaseOrder>(`/purchasing/orders/${poId}`, data);
+      setOrders(prev => prev.map(po => po.id === poId ? updated : po));
+      return true;
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to update purchase order');
+      return false;
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const receivePurchaseOrder = async (poId: number) => {
     setActionLoading(true);
     try {
@@ -129,6 +143,7 @@ export function usePurchasingController() {
     setIsCreatePOModalOpen,
     createSupplier,
     createPurchaseOrder,
+    updatePurchaseOrder,
     receivePurchaseOrder,
     refresh: fetchPurchasingData,
   };
