@@ -1674,6 +1674,8 @@ textarea.erp-input {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  align-items: flex-start;
+  text-align: left;
   gap: 10px;
   min-width: 0;
   transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
@@ -1701,6 +1703,8 @@ textarea.erp-input {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: left;
+  width: 100%;
 }
 
 .erp-kpi-icon {
@@ -1721,6 +1725,7 @@ textarea.erp-input {
   align-items: flex-end;
   justify-content: space-between;
   gap: 8px;
+  width: 100%;
 }
 
 .erp-kpi-value {
@@ -1729,6 +1734,8 @@ textarea.erp-input {
   color: var(--erp-text-main);
   letter-spacing: normal;
   line-height: 1.2;
+  text-align: left;
+  width: 100%;
 }
 
 .erp-kpi-sparkline {

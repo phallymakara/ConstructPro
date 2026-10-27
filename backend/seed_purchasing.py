@@ -70,15 +70,15 @@ def seed_purchasing_data():
                 "notes": "Direct factory export from Foshan, China. Sea freight to Sihanoukville"
             },
             {
-                "name": "Bangkok Glazing & Architectural Glass Ltd.",
+                "name": "Singapore Glazing & Architectural Glass Ltd.",
                 "supplier_type": "Overseas",
-                "contact_person": "Somchai Prasert",
-                "phone": "+66 2 765 4321",
-                "email": "intertrade@bkkglazing.co.th",
+                "contact_person": "Michael Tan",
+                "phone": "+65 6789 1234",
+                "email": "sales@singaporeglazing.sg",
                 "materials_supplied": "Laminated Safety Glass, Double Glazing, Low-E Glass",
-                "lead_time_days": 12,
+                "lead_time_days": 14,
                 "rating": 4.8,
-                "notes": "Premium Thai glazing manufacturer. Cross-border road freight via Poipet"
+                "notes": "Premium Singaporean glazing manufacturer. Sea freight container shipping to Sihanoukville Port"
             },
             {
                 "name": "Vietnam Sun Metal Profiles JSC",
@@ -151,12 +151,12 @@ def seed_purchasing_data():
             },
             {
                 "po_number": "PO-2026-004",
-                "supplier_name": "Bangkok Glazing & Architectural Glass Ltd.",
+                "supplier_name": "Singapore Glazing & Architectural Glass Ltd.",
                 "status": "Ordered",
                 "order_date": today - timedelta(days=6),
                 "expected_delivery_date": today + timedelta(days=9),
                 "actual_delivery_date": None,
-                "notes": "Overseas cross-border truck delivery via Poipet border checkpoint",
+                "notes": "Overseas sea freight container shipping via Sihanoukville Autonomous Port",
                 "items": [
                     {"code": "GLS-TMP-10", "qty": 50, "cost": 26.5},
                     {"code": "GLS-LAM-838", "qty": 30, "cost": 29.0},

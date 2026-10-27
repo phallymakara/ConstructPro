@@ -549,15 +549,15 @@ def seed_khmer_database():
                 "notes": "នាំចេញដោយផ្ទាល់ពីរោងចក្រក្រុង Foshan ប្រទេសចិន ដឹកជញ្ជូនតាមកប៉ាល់មកកំពង់ផែក្រុងព្រះសីហនុ"
             },
             {
-                "name": "ក្រុមហ៊ុន បាងកក កញ្ចក់ស្ថាបត្យកម្ម (ប្រទេសថៃ)",
+                "name": "ក្រុមហ៊ុន សិង្ហបុរី កញ្ចក់ស្ថាបត្យកម្ម (ប្រទេសសិង្ហបុរី)",
                 "supplier_type": "Overseas",
-                "contact_person": "លោក Somchai Prasert",
-                "phone": "+66 2 765 4321",
-                "email": "intertrade@bkkglazing.co.th",
+                "contact_person": "លោក Michael Tan",
+                "phone": "+65 6789 1234",
+                "email": "sales@singaporeglazing.sg",
                 "materials_supplied": "កញ្ចក់សុវត្ថិភាពកម្រាស់ក្រាស់ កញ្ចក់ Laminated និង Low-E",
-                "lead_time_days": 12,
+                "lead_time_days": 14,
                 "rating": 4.8,
-                "notes": "រោងចក្រកញ្ចក់ស្ដង់ដារអន្តរជាតិនៅបាងកក ដឹកជញ្ជូនតាមរថយន្តកុងតឺន័រកាត់ច្រកទ្វារប៉ោយប៉ែត"
+                "notes": "រោងចក្រកញ្ចក់ស្ដង់ដារអន្តរជាតិនៅសិង្ហបុរី ដឹកជញ្ជូនតាមកប៉ាល់កុងតឺន័រមកកំពង់ផែក្រុងព្រះសីហនុ"
             },
             {
                 "name": "ក្រុមហ៊ុន វៀតណាម សាន់មេថល (ប្រទេសវៀតណាម)",
@@ -1132,12 +1132,12 @@ def seed_khmer_database():
             },
             {
                 "po_number": "PO-2026-004",
-                "supplier_name": "ក្រុមហ៊ុន បាងកក កញ្ចក់ស្ថាបត្យកម្ម (ប្រទេសថៃ)",
+                "supplier_name": "ក្រុមហ៊ុន សិង្ហបុរី កញ្ចក់ស្ថាបត្យកម្ម (ប្រទេសសិង្ហបុរី)",
                 "status": "Ordered",
                 "order_date": now - timedelta(days=6),
                 "expected_delivery_date": now + timedelta(days=9),
                 "actual_delivery_date": None,
-                "notes": "ការដឹកជញ្ជូនតាមរថយន្តកុងតឺន័រឆ្លងកាត់ច្រកទ្វារព្រំដែនអន្តរជាតិប៉ោយប៉ែត",
+                "notes": "ការដឹកជញ្ជូនតាមកប៉ាល់កុងតឺន័រមកដល់កំពង់ផែអន្តរជាតិក្រុងព្រះសីហនុ",
                 "items": [
                     {"code": "GLS-TMP-10", "qty": 50, "cost": 26.5},
                     {"code": "GLS-LAM-838", "qty": 30, "cost": 29.0},
