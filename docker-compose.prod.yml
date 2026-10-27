@@ -14,8 +14,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - constructpro_prod_net
 
   backend:
+    image: constructpro-backend:prod
     build:
       context: ./backend
       dockerfile: ../docker/backend/Dockerfile
@@ -24,23 +27,34 @@ services:
     environment:
       - PORT=8001
       - DATABASE_URL=postgresql://${POSTGRES_USER:-constructpro}:${POSTGRES_PASSWORD:-constructpro_secure_pass}@db:5432/${POSTGRES_DB:-constructpro}
-      - CORS_ORIGINS=["http://localhost","http://localhost:80","http://127.0.0.1","http://127.0.0.1:80"]
+      - CORS_ORIGINS=["http://localhost","http://localhost:${FRONTEND_PORT:-8080}","http://127.0.0.1","http://127.0.0.1:${FRONTEND_PORT:-8080}"]
     ports:
-      - "8001:8001"
+      # Expose backend on configurable port (default 8005 to prevent conflict with 8000/8001)
+      - "${BACKEND_PORT:-8005}:8001"
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - constructpro_prod_net
 
   frontend:
+    image: constructpro-frontend:prod
     build:
       context: ./frontend
       dockerfile: ../docker/frontend/Dockerfile
     container_name: constructpro_prod_frontend
     restart: always
     ports:
-      - "80:80"
+      # Expose frontend on configurable port (default 8080 to prevent conflict with port 80/3000)
+      - "${FRONTEND_PORT:-8080}:80"
     depends_on:
       - backend
+    networks:
+      - constructpro_prod_net
 
 volumes:
   postgres_prod_data:
+
+networks:
+  constructpro_prod_net:
+    name: constructpro_prod_net
