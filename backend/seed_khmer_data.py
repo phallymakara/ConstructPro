@@ -185,7 +185,7 @@ def seed_khmer_database():
                 "reserved_stock": 12.0,
                 "minimum_stock": 30.0,
                 "storage_location": "r03-b02-l02",
-                "image_url": "/products/tempered_glass.jpg",
+                "image_url": "/products/tinted_glass.jpg",
                 "notes": "កញ្ចក់ពណ៌ជួយកាត់បន្ថយកម្តៅថ្ងៃ និងការពារកាំរស្មីយូវី",
             },
 
@@ -203,7 +203,7 @@ def seed_khmer_database():
                 "reserved_stock": 30.0,
                 "minimum_stock": 50.0,
                 "storage_location": "r01-b01-l01",
-                "image_url": "/products/aluminum_profiles.jpg",
+                "image_url": "/products/aluminum_profile_black.jpg",
                 "notes": "ស៊ុមអាលុយមីញ៉ូមស្ដង់ដារសម្រាប់បង្អួចរុញ និងទ្វារបន្ទប់",
             },
             {
@@ -219,7 +219,7 @@ def seed_khmer_database():
                 "reserved_stock": 40.0,
                 "minimum_stock": 40.0,
                 "storage_location": "r01-b01-l02",
-                "image_url": "/products/aluminum_profiles.jpg",
+                "image_url": "/products/aluminum_profile_grey.jpg",
                 "notes": "ស៊ុមអាលុយមីញ៉ូមពណ៌ប្រផេះស្រោប Anodized គុណភាពខ្ពស់",
             },
             {
@@ -235,7 +235,7 @@ def seed_khmer_database():
                 "reserved_stock": 20.0,
                 "minimum_stock": 80.0,  # Shortage for Radar
                 "storage_location": "r01-b02-l01",
-                "image_url": "/products/aluminum_profiles.jpg",
+                "image_url": "/products/curtain_wall_mullion.jpg",
                 "notes": "សសរបញ្ឈរ Mullion ទ្រទ្រង់កញ្ចក់សម្រាប់ជញ្ជាំងកញ្ចក់ Curtain Wall",
             },
             {
@@ -283,7 +283,7 @@ def seed_khmer_database():
                 "reserved_stock": 20.0,
                 "minimum_stock": 40.0,
                 "storage_location": "r02-b01-l01",
-                "image_url": "/products/aluminum_profiles.jpg",
+                "image_url": "/products/steel_box_tube.jpg",
                 "notes": "ដែកប្រអប់កាល់វ៉ាណាយការពារច្រែះ សម្រាប់រចនាសម្ព័ន្ធទ្រទ្រង់ខាងក្នុង",
             },
             {
@@ -299,7 +299,7 @@ def seed_khmer_database():
                 "reserved_stock": 5.0,
                 "minimum_stock": 30.0,  # Shortage for Radar
                 "storage_location": "r02-b01-l02",
-                "image_url": "/products/aluminum_profiles.jpg",
+                "image_url": "/products/steel_box_tube.jpg",
                 "notes": "ដែកប្រអប់ធំរឹងមាំខ្ពស់ សម្រាប់គ្រោងឆ្អឹងជញ្ជាំងកញ្ចក់និងដំបូល",
             },
 
@@ -317,7 +317,7 @@ def seed_khmer_database():
                 "reserved_stock": 40.0,
                 "minimum_stock": 100.0,
                 "storage_location": "r04-b01-l01",
-                "image_url": "/products/sealants.jpg",
+                "image_url": "/products/black_silicone.jpg",
                 "notes": "ស៊ីលីកូនការពារជម្រាបទឹកធន់នឹងកម្តៅថ្ងៃ សម្រាប់បាញ់គែមបង្អួចនិងទ្វារខាងក្រៅ",
             },
             {
@@ -365,7 +365,7 @@ def seed_khmer_database():
                 "reserved_stock": 10.0,
                 "minimum_stock": 20.0,
                 "storage_location": "r04-b03-l01",
-                "image_url": "/products/sealants.jpg",
+                "image_url": "/products/stainless_door_handle.jpg",
                 "notes": "ដៃទ្វារអ៊ីណុក ៣០៤ ប្រឆាំងការច្រែះ សម្រាប់ទ្វារកញ្ចក់ការិយាល័យ",
             },
             {
@@ -381,7 +381,7 @@ def seed_khmer_database():
                 "reserved_stock": 8.0,
                 "minimum_stock": 15.0,
                 "storage_location": "r04-b03-l02",
-                "image_url": "/products/sealants.jpg",
+                "image_url": "/products/floor_spring_hinge.jpg",
                 "notes": "ឧបករណ៍ទប់លំនឹងនិងបិទទ្វារកញ្ចក់ស្វ័យប្រវត្តិកប់ក្នុងកម្រាលឥដ្ឋ",
             },
             {
@@ -397,7 +397,7 @@ def seed_khmer_database():
                 "reserved_stock": 120.0,
                 "minimum_stock": 200.0,
                 "storage_location": "r04-b02-l02",
-                "image_url": "/products/sealants.jpg",
+                "image_url": "/products/epdm_gasket_seal.jpg",
                 "notes": "កៅស៊ូ EPDM គុណភាពខ្ពស់មិនងាយស្រួយ សម្រាប់ទ្រាប់គែមកញ្ចក់ការពារទឹក",
             },
         ]
