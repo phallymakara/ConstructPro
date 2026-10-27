@@ -5,7 +5,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-constructpro}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-constructpro_secure_pass}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-constructpro_dev}
       POSTGRES_DB: ${POSTGRES_DB:-constructpro}
     volumes:
       - postgres_prod_data:/var/lib/postgresql/data
@@ -26,7 +26,7 @@ services:
     restart: always
     environment:
       - PORT=8001
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-constructpro}:${POSTGRES_PASSWORD:-constructpro_secure_pass}@db:5432/${POSTGRES_DB:-constructpro}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-constructpro}:${POSTGRES_PASSWORD:-constructpro_dev}@db:5432/${POSTGRES_DB:-constructpro}
       - CORS_ORIGINS=["http://localhost","http://localhost:${FRONTEND_PORT:-8080}","http://127.0.0.1","http://127.0.0.1:${FRONTEND_PORT:-8080}"]
     ports:
       # Expose backend on configurable port (default 8005 to prevent conflict with 8000/8001)
