@@ -105,7 +105,7 @@ export const CategoryManageModal: React.FC<CategoryManageModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Manage Inventory Categories"
+      title="Manage Warehouse Categories"
       maxWidth="750px"
     >
       <div className="erp-modal-body" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>

@@ -541,13 +541,18 @@ export const ProjectsView: React.FC = () => {
           </div>
         ) : (
           <div
+            className="erp-projects-cards-container"
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-              gap: '16px',
+              flex: 1,
+              minHeight: 0,
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              paddingRight: '4px',
+              paddingBottom: '20px',
             }}
           >
-            {projects.map(proj => {
+            <div className="erp-cards-grid-4col">
+              {projects.map(proj => {
               const progress = getProjectCalculatedProgress(proj.id, proj.status);
               const exportValidation = checkProjectExportValidation(proj);
               const customerName = proj.customer?.name || customers.find(c => c.id === proj.customer_id)?.name || '-';
@@ -562,18 +567,19 @@ export const ProjectsView: React.FC = () => {
                     {/* Card Header: Project Number, Name, Status Badge, and Action dropdown */}
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
                       <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontSize: '11.5px', color: 'var(--erp-text-muted)', marginBottom: '3px' }}>
+                        <div style={{ fontSize: '13px', color: 'var(--erp-text-muted)', marginBottom: '3px' }}>
                           {proj.project_number || `PRJ-${String(proj.id).padStart(4, '0')}`}
                         </div>
                         <h3
                           style={{
-                            fontSize: '16px',
-                            fontWeight: 600,
+                            fontSize: '13.5px',
+                            fontWeight: 400,
                             color: 'var(--erp-text-main)',
                             margin: 0,
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap',
+                            lineHeight: 1.35,
                           }}
                           title={proj.project_name}
                         >
@@ -582,7 +588,7 @@ export const ProjectsView: React.FC = () => {
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                        <StatusBadge status={proj.status} style={{ fontSize: '12px', padding: '2px 8px' }} />
+                        <StatusBadge status={proj.status} style={{ fontSize: '11.5px', padding: '2px 8px' }} />
 
                         <div className="erp-dropdown-container">
                           <button
@@ -758,14 +764,14 @@ export const ProjectsView: React.FC = () => {
                     </div>
 
                     {/* Metadata: Location & Dates */}
-                    <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', color: 'var(--erp-text-main)' }}>
+                    <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--erp-text-main)', fontSize: '12.5px' }}>
                         <MapPin size={14} style={{ color: 'var(--erp-text-muted)', flexShrink: 0 }} />
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {proj.location || 'Not Specified'}
                         </span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', color: 'var(--erp-text-muted)', fontSize: '12.5px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--erp-text-muted)', fontSize: '12.5px' }}>
                         <Calendar size={14} style={{ flexShrink: 0 }} />
                         <span>
                           {proj.start_date ? new Date(proj.start_date).toLocaleDateString() : '-'}
@@ -780,11 +786,11 @@ export const ProjectsView: React.FC = () => {
                   <div style={{ borderTop: '1px solid var(--erp-border)', paddingTop: '10px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', fontSize: '12.5px' }}>
                       <span style={{ color: 'var(--erp-text-muted)' }}>Progress</span>
-                      <span style={{ fontWeight: 600, color: progress === 100 ? '#059669' : 'var(--erp-text-main)' }}>
+                      <span style={{ fontWeight: 600, fontSize: '13px', color: progress === 100 ? '#059669' : 'var(--erp-text-main)' }}>
                         {progress}%
                       </span>
                     </div>
-                    <div className="erp-progress-track" style={{ height: '6px', margin: 0 }}>
+                    <div className="erp-progress-track" style={{ height: '7px', margin: 0 }}>
                       <div
                         className={`erp-progress-bar ${progress === 100 ? 'completed' : ''}`}
                         style={{ width: `${progress}%` }}
@@ -794,6 +800,7 @@ export const ProjectsView: React.FC = () => {
                 </div>
               );
             })}
+            </div>
           </div>
         )
       ) : (
@@ -834,7 +841,7 @@ export const ProjectsView: React.FC = () => {
                       <td
                         style={{
                           fontWeight: 400,
-                          fontSize: '15.5px',
+                          fontSize: '14px',
                           color: 'var(--erp-text-main)',
                           cursor: 'pointer'
                         }}

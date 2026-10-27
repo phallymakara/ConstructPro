@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: constructpro_prod_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-constructpro}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-constructpro_secure_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-constructpro}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-constructpro} -d ${POSTGRES_DB:-constructpro}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/backend/Dockerfile
+    container_name: constructpro_prod_backend
+    restart: always
+    environment:
+      - PORT=8001
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-constructpro}:${POSTGRES_PASSWORD:-constructpro_secure_pass}@db:5432/${POSTGRES_DB:-constructpro}
+      - CORS_ORIGINS=["http://localhost","http://localhost:80","http://127.0.0.1","http://127.0.0.1:80"]
+    ports:
+      - "8001:8001"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/frontend/Dockerfile
+    container_name: constructpro_prod_frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_prod_data:

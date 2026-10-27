@@ -54,6 +54,7 @@ export interface Material {
   minimum_stock: number;
   storage_location?: string;
   notes?: string;
+  image_url?: string;
   created_at: string;
 }
 
@@ -70,6 +71,7 @@ export interface MaterialFormData {
   minimum_stock: number;
   storage_location: string;
   notes: string;
+  image_url?: string;
 }
 
 export interface StockMovement {
@@ -229,6 +231,8 @@ export interface Project {
   material_requirements: MaterialRequirement[];
   payments?: ProjectPayment[];
   worker_logs?: ProjectWorkerLog[];
+  tasks?: ProjectTask[];
+  documents?: ProjectDocument[];
 }
 
 export interface ProjectFormData {
@@ -465,4 +469,16 @@ export interface ProjectTask {
   est_end_date?: string;
 }
 
-
+export interface ProjectDocument {
+  id: number;
+  project_id?: number;
+  name: string;
+  document_type?: string;
+  category?: string;
+  file_name?: string;
+  file_url?: string;
+  uploaded_by?: string;
+  uploaded_at?: string;
+  is_default?: boolean;
+  created_at?: string;
+}

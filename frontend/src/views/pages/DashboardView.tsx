@@ -1,8 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import {
-  FolderKanban,
-  Package,
   Truck,
   CheckCircle2,
   ChevronRight,
@@ -10,7 +8,6 @@ import {
   ChevronDown,
   Check,
   Loader2,
-  Layers
 } from 'lucide-react';
 import { useDashboardController } from '../../controllers/useDashboardController';
 import { calculateDynamicProjectStatus } from '../../utils/taskProgress';
@@ -20,7 +17,6 @@ export const DashboardView: React.FC = () => {
   const {
     summary,
     allProjects,
-    allMaterials,
     isLoading,
     errorMessage,
     receivePurchaseOrder
@@ -448,40 +444,7 @@ export const DashboardView: React.FC = () => {
     return counts;
   }, [allProjects]);
 
-  // Operational Lifecycle & Inventory Summary (Purely Operational, Zero Commercial/Money)
-  const operationalStats = useMemo(() => {
-    let inProduction = 0;
-    let installingOrReady = 0;
-    let prepOrStarting = 0;
 
-    allProjects.forEach(p => {
-      const s = (p.status || '').toLowerCase();
-      if (s === 'production' || s === 'material preparation' || s === 'in progress') {
-        inProduction++;
-      } else if (s === 'ready for delivery' || s === 'installation' || s === 'accepted') {
-        installingOrReady++;
-      } else if (s === 'starting' || s === 'inquiry' || s === 'discussion' || s === 'quotation') {
-        prepOrStarting++;
-      }
-    });
-
-    const totalStockQty = allMaterials.reduce((acc, m) => acc + (m.current_stock || 0), 0);
-    const lowStockCount = summary?.low_stock_count ?? allMaterials.filter(m => (m.current_stock || 0) <= (m.minimum_stock || 0)).length;
-    const openOrdersCount = summary?.open_po_count ?? 0;
-    const overseasInTransit = summary?.overseas_in_transit_count ?? 0;
-    const localOrdersCount = Math.max(0, openOrdersCount - overseasInTransit);
-
-    return {
-      inProduction,
-      installingOrReady,
-      prepOrStarting,
-      totalStockQty,
-      lowStockCount,
-      openOrdersCount,
-      overseasInTransit,
-      localOrdersCount,
-    };
-  }, [allProjects, allMaterials, summary]);
 
   const totalProjects = summary?.total_projects ?? allProjects.length;
 
@@ -503,100 +466,102 @@ export const DashboardView: React.FC = () => {
           </div>
         )}
 
-        {/* 1. Operational Command Center - 4 Clean Cards */}
+        {/* 1. Key Metrics - 4 Compact KPI Cards */}
         <div className="erp-kpi-grid-4">
-          {/* Card 1: Active Sites */}
-          <div className="erp-kpi-card">
-            <div className="erp-kpi-header">
-              <span className="erp-kpi-label">Active Sites</span>
-              <div className="erp-kpi-icon">
-                <FolderKanban size={15} color="var(--erp-primary, #0284c7)" />
-              </div>
-            </div>
-            <div className="erp-kpi-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
-              <div className="erp-kpi-value">
-                {summary?.active_projects ?? statusCounts.inProgress}
-              </div>
-              <div style={{ fontSize: '13px', color: 'var(--erp-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                {(summary?.delayed_projects ?? statusCounts.overdue) > 0 ? (
-                  <span style={{ color: 'var(--erp-text-error, #dc2626)' }}>
-                    {summary?.delayed_projects ?? statusCounts.overdue} overdue •
-                  </span>
-                ) : null}
-                <span>{summary?.completed_projects ?? statusCounts.completed} done</span>
-                <span> • {totalProjects} total</span>
-              </div>
+          {/* Card 1: Contract Value */}
+          <div
+            className="erp-kpi-card"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'flex-start',
+              padding: '14px 18px',
+              gap: '4px',
+              minHeight: '84px',
+              textAlign: 'left',
+            }}
+          >
+            <span className="erp-kpi-label" style={{ fontSize: '16px', fontWeight: 600, color: 'var(--erp-text-muted)' }}>
+              Contract Value
+            </span>
+            <div className="erp-kpi-value" style={{ fontSize: '24px', lineHeight: 1.15, fontWeight: 700, textAlign: 'left' }}>
+              ${(summary?.total_contract_value ?? 0).toLocaleString()}
             </div>
           </div>
 
-          {/* Card 2: Production */}
-          <div className="erp-kpi-card">
-            <div className="erp-kpi-header">
-              <span className="erp-kpi-label">In Production</span>
-              <div className="erp-kpi-icon">
-                <Layers size={15} color="#0284c7" />
-              </div>
-            </div>
-            <div className="erp-kpi-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
-              <div className="erp-kpi-value">
-                {operationalStats.inProduction}
-              </div>
-              <div style={{ fontSize: '13px', color: 'var(--erp-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <span>{operationalStats.installingOrReady} installing • {operationalStats.prepOrStarting} prep</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 3: Stock Buffers */}
-          <div className="erp-kpi-card">
-            <div className="erp-kpi-header">
-              <span className="erp-kpi-label">Stock Buffers</span>
-              <div className="erp-kpi-icon">
-                <Package size={15} color="#0284c7" />
-              </div>
-            </div>
-            <div className="erp-kpi-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
-              <div className="erp-kpi-value">
-                {allMaterials.length} SKUs
-              </div>
-              <div style={{ fontSize: '13px', color: 'var(--erp-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                {operationalStats.lowStockCount > 0 ? (
-                  <span style={{ color: '#d97706' }}>
-                    {operationalStats.lowStockCount} low
-                  </span>
-                ) : (
-                  <span style={{ color: 'var(--erp-success, #059669)' }}>
-                    Healthy
-                  </span>
-                )}
-                <span> • {Math.round(operationalStats.totalStockQty)} units</span>
-              </div>
+          {/* Card 2: Collected */}
+          <div
+            className="erp-kpi-card"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'flex-start',
+              padding: '14px 18px',
+              gap: '4px',
+              minHeight: '84px',
+              textAlign: 'left',
+            }}
+          >
+            <span className="erp-kpi-label" style={{ fontSize: '16px', fontWeight: 600, color: 'var(--erp-text-muted)' }}>
+              Collected
+            </span>
+            <div className="erp-kpi-value" style={{ fontSize: '24px', lineHeight: 1.15, fontWeight: 700, textAlign: 'left' }}>
+              ${(summary?.total_collected_cash ?? 0).toLocaleString()}
             </div>
           </div>
 
-          {/* Card 4: Open Orders */}
-          <div className="erp-kpi-card">
-            <div className="erp-kpi-header">
-              <span className="erp-kpi-label">Open Orders</span>
-              <div className="erp-kpi-icon">
-                <Truck size={15} color="#0284c7" />
-              </div>
+          {/* Card 3: Projected Profit */}
+          <div
+            className="erp-kpi-card"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'flex-start',
+              padding: '14px 18px',
+              gap: '4px',
+              minHeight: '84px',
+              textAlign: 'left',
+            }}
+          >
+            <span className="erp-kpi-label" style={{ fontSize: '16px', fontWeight: 600, color: 'var(--erp-text-muted)' }}>
+              Projected Profit
+            </span>
+            <div className="erp-kpi-value" style={{ fontSize: '24px', lineHeight: 1.15, fontWeight: 700, color: '#10b981', textAlign: 'left' }}>
+              ${(summary?.projected_profit ?? 0).toLocaleString()}
             </div>
-            <div className="erp-kpi-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
-              <div className="erp-kpi-value">
-                {operationalStats.openOrdersCount}
-              </div>
-              <div style={{ fontSize: '13px', color: 'var(--erp-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                {operationalStats.overseasInTransit > 0 ? (
-                  <span>
-                    <span style={{ color: 'var(--erp-primary, #0284c7)' }}>
-                      {operationalStats.overseasInTransit} overseas
-                    </span>
-                    <span> • </span>
-                  </span>
-                ) : null}
-                <span>{operationalStats.localOrdersCount} local</span>
-              </div>
+          </div>
+
+          {/* Card 4: Active Projects */}
+          <div
+            className="erp-kpi-card"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'flex-start',
+              padding: '14px 18px',
+              gap: '4px',
+              minHeight: '84px',
+              textAlign: 'left',
+            }}
+          >
+            <span className="erp-kpi-label" style={{ fontSize: '16px', fontWeight: 600, color: 'var(--erp-text-muted)' }}>
+              Active Projects
+            </span>
+            <div className="erp-kpi-value" style={{ fontSize: '24px', lineHeight: 1.15, fontWeight: 700, textAlign: 'left' }}>
+              {summary?.active_projects ?? statusCounts.inProgress}
+            </div>
+            <div style={{ fontSize: '12.5px', color: 'var(--erp-text-muted)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '1px' }}>
+              {statusCounts.overdue > 0 && (
+                <span style={{ color: '#dc2626', fontWeight: 500 }}>
+                  {statusCounts.overdue} overdue •
+                </span>
+              )}
+              <span>{statusCounts.completed} done</span>
+              <span>• {totalProjects} total</span>
             </div>
           </div>
         </div>
@@ -996,15 +961,16 @@ export const DashboardView: React.FC = () => {
           <div className="erp-chart-card">
             <div className="erp-chart-header">
               <div className="erp-chart-title">
-                <span>Workflow Stages</span>
+                <span style={{ fontSize: '16px' }}>Workflow Stages</span>
               </div>
               <button
                 type="button"
                 className="erp-link-btn"
                 onClick={() => navigate({ to: '/projects' })}
+                style={{ fontSize: '13.5px' }}
               >
                 <span>Pipeline</span>
-                <ChevronRight size={12} />
+                <ChevronRight size={13} />
               </button>
             </div>
 
@@ -1067,10 +1033,10 @@ export const DashboardView: React.FC = () => {
                     pointerEvents: 'none',
                   }}
                 >
-                  <div style={{ fontSize: '20px', fontWeight: 500, color: 'var(--erp-text-main)', lineHeight: 1 }}>
+                  <div style={{ fontSize: '24px', fontWeight: 600, color: 'var(--erp-text-main)', lineHeight: 1 }}>
                     {totalProjects}
                   </div>
-                  <div style={{ fontSize: '12px', color: 'var(--erp-text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: '2px' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--erp-text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: '3px' }}>
                     Works
                   </div>
                 </div>
@@ -1094,8 +1060,8 @@ export const DashboardView: React.FC = () => {
                       onMouseEnter={() => setHoveredStage(s.id)}
                       onMouseLeave={() => setHoveredStage(null)}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13.5px', marginBottom: '3px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '14.5px', marginBottom: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
                           <span
                             style={{
                               width: '8px',
@@ -1104,13 +1070,13 @@ export const DashboardView: React.FC = () => {
                               backgroundColor: s.color,
                             }}
                           />
-                          <span style={{ color: 'var(--erp-text-main)' }}>
+                          <span style={{ color: 'var(--erp-text-main)', fontWeight: 500 }}>
                             {s.label}
                           </span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ color: 'var(--erp-text-main)' }}>{s.count}</span>
-                          <span style={{ color: 'var(--erp-text-muted)', fontSize: '12.5px' }}>
+                          <span style={{ color: 'var(--erp-text-main)', fontWeight: 600, fontSize: '14.5px' }}>{s.count}</span>
+                          <span style={{ color: 'var(--erp-text-muted)', fontSize: '13px' }}>
                             ({s.percent.toFixed(0)}%)
                           </span>
                         </div>
@@ -1140,15 +1106,15 @@ export const DashboardView: React.FC = () => {
           <div className="erp-chart-card">
             <div className="erp-chart-header" style={{ marginBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className="erp-chart-title" style={{ fontSize: '15px' }}>
+                <span className="erp-chart-title" style={{ fontSize: '16px' }}>
                   Material Shortages
                 </span>
                 {(summary?.shortage_items?.length ?? 0) > 0 ? (
-                  <span style={{ color: '#dc2626', fontWeight: 600, fontSize: '13px' }}>
+                  <span style={{ color: '#dc2626', fontWeight: 600, fontSize: '13.5px' }}>
                     • {summary?.shortage_items?.length} Action Required
                   </span>
                 ) : (
-                  <span style={{ color: '#059669', fontWeight: 600, fontSize: '13px' }}>
+                  <span style={{ color: '#059669', fontWeight: 600, fontSize: '13.5px' }}>
                     • Buffer Healthy
                   </span>
                 )}
@@ -1156,17 +1122,18 @@ export const DashboardView: React.FC = () => {
               <button
                 type="button"
                 className="erp-link-btn"
-                onClick={() => navigate({ to: '/inventory' })}
+                onClick={() => navigate({ to: '/warehouse' })}
+                style={{ fontSize: '13.5px' }}
               >
-                <span>Inventory</span>
-                <ChevronRight size={12} />
+                <span>Warehouse</span>
+                <ChevronRight size={13} />
               </button>
             </div>
 
             {(!summary?.shortage_items || summary.shortage_items.length === 0) ? (
-              <div style={{ padding: '28px 12px', textAlign: 'center', color: 'var(--erp-text-muted)', fontSize: '13.5px' }}>
+              <div style={{ padding: '28px 12px', textAlign: 'center', color: 'var(--erp-text-muted)', fontSize: '14px' }}>
                 <CheckCircle2 size={24} color="#059669" style={{ margin: '0 auto 8px auto', display: 'block' }} />
-                All inventory levels are above minimum safety buffer.
+                All warehouse stock levels are above minimum safety buffer.
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -1180,7 +1147,7 @@ export const DashboardView: React.FC = () => {
                       key={item.code}
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: 'minmax(160px, 1.8fr) minmax(130px, 1.2fr) 85px 75px',
+                        gridTemplateColumns: 'minmax(160px, 1.8fr) minmax(130px, 1.2fr) 95px 80px',
                         alignItems: 'center',
                         gap: '12px',
                         padding: '10px 8px',
@@ -1197,17 +1164,17 @@ export const DashboardView: React.FC = () => {
                     >
                       {/* Name & SKU */}
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: '14.5px', fontWeight: 500, color: 'var(--erp-text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div style={{ fontSize: '14px', fontWeight: 400, color: 'var(--erp-text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {item.name}
                         </div>
-                        <div style={{ fontSize: '12px', color: 'var(--erp-text-muted)', marginTop: '1px', fontFamily: 'var(--erp-mono-font)' }}>
+                        <div style={{ fontSize: '13px', color: 'var(--erp-text-muted)', marginTop: '2px', fontFamily: 'var(--erp-mono-font)' }}>
                           {item.code}
                         </div>
                       </div>
 
                       {/* Stock Level & Visual Progress Track */}
                       <div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12.5px', marginBottom: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13.5px', marginBottom: '4px' }}>
                           <span style={{ color: '#dc2626', fontWeight: 600 }}>{item.current_stock} {unitDisplay}</span>
                           <span style={{ color: 'var(--erp-text-muted)' }}>min {item.minimum_stock}</span>
                         </div>
@@ -1224,7 +1191,7 @@ export const DashboardView: React.FC = () => {
 
                       {/* Deficit */}
                       <div style={{ textAlign: 'right' }}>
-                        <span style={{ color: '#dc2626', fontWeight: 600, fontSize: '13.5px' }}>
+                        <span style={{ color: '#dc2626', fontWeight: 600, fontSize: '14.5px' }}>
                           -{deficit} {unitDisplay}
                         </span>
                       </div>
@@ -1235,11 +1202,11 @@ export const DashboardView: React.FC = () => {
                           type="button"
                           className="erp-link-btn"
                           onClick={() => navigate({ to: '/purchasing' })}
-                          style={{ fontSize: '13px' }}
+                          style={{ fontSize: '13.5px' }}
                           title="Reorder material"
                         >
                           <span>Reorder</span>
-                          <ChevronRight size={12} />
+                          <ChevronRight size={13} />
                         </button>
                       </div>
                     </div>
@@ -1253,10 +1220,10 @@ export const DashboardView: React.FC = () => {
           <div className="erp-chart-card">
             <div className="erp-chart-header" style={{ marginBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className="erp-chart-title" style={{ fontSize: '15px' }}>
+                <span className="erp-chart-title" style={{ fontSize: '16px' }}>
                   Inbound Deliveries
                 </span>
-                <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--erp-text-muted)' }}>
+                <span style={{ fontSize: '13.5px', fontWeight: 500, color: 'var(--erp-text-muted)' }}>
                   • {summary?.upcoming_deliveries?.length ?? 0} Pending
                 </span>
               </div>
@@ -1264,86 +1231,135 @@ export const DashboardView: React.FC = () => {
                 type="button"
                 className="erp-link-btn"
                 onClick={() => navigate({ to: '/purchasing' })}
+                style={{ fontSize: '13.5px' }}
               >
                 <span>Purchasing</span>
-                <ChevronRight size={12} />
+                <ChevronRight size={13} />
               </button>
             </div>
 
             {(!summary?.upcoming_deliveries || summary.upcoming_deliveries.length === 0) ? (
-              <div style={{ padding: '28px 12px', textAlign: 'center', color: 'var(--erp-text-muted)', fontSize: '13.5px' }}>
+              <div style={{ padding: '28px 12px', textAlign: 'center', color: 'var(--erp-text-muted)', fontSize: '14px' }}>
                 <Truck size={24} color="#94a3b8" style={{ margin: '0 auto 8px auto', display: 'block' }} />
                 No inbound shipments scheduled.
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {summary.upcoming_deliveries.map((delivery) => {
+              <div style={{ display: 'flex', flexDirection: 'column', paddingTop: '4px' }}>
+                {(summary.upcoming_deliveries ?? []).map((delivery, index, arr) => {
                   const isReceiving = receivingPoId === delivery.id;
                   const isOverseas = delivery.channel === 'Overseas';
                   const formattedEta = formatEtaDate(delivery.expected_delivery_date);
+                  const isLast = index === arr.length - 1;
 
                   return (
                     <div
                       key={delivery.id}
                       style={{
                         display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '10px 8px',
-                        borderBottom: '1px solid var(--erp-border)',
-                        transition: 'background-color 0.15s ease',
-                        borderRadius: 'var(--erp-radius-xs)',
-                        gap: '10px',
-                      }}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--erp-surface-hover)';
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
+                        gap: '14px',
+                        position: 'relative',
+                        paddingBottom: isLast ? '0' : '6px',
                       }}
                     >
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '14.5px', fontWeight: 500, color: 'var(--erp-text-main)', fontFamily: 'var(--erp-mono-font)' }}>
-                            {delivery.po_number}
-                          </span>
-                          <span
+                      {/* Timeline track */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          paddingTop: '6px',
+                          width: '14px',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {/* Dot */}
+                        <div
+                          style={{
+                            width: '10px',
+                            height: '10px',
+                            borderRadius: '50%',
+                            border: `2px solid ${isOverseas ? 'var(--erp-primary)' : 'var(--erp-text-light)'}`,
+                            background: 'var(--erp-surface)',
+                            flexShrink: 0,
+                            zIndex: 1,
+                          }}
+                        />
+                        {/* Connector line */}
+                        {!isLast && (
+                          <div
                             style={{
-                              fontSize: '12.5px',
-                              fontWeight: 500,
-                              color: isOverseas ? 'var(--erp-primary)' : 'var(--erp-text-muted)'
+                              width: '2px',
+                              flex: 1,
+                              background: 'var(--erp-border)',
+                              marginTop: '4px',
                             }}
-                          >
-                            • {delivery.channel}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '12.5px', color: 'var(--erp-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          <span>{delivery.supplier_name}</span>
-                          <span> • ETA: {formattedEta}</span>
-                        </div>
+                          />
+                        )}
                       </div>
 
-                      <div style={{ flexShrink: 0 }}>
-                        <button
-                          type="button"
-                          className="erp-btn erp-btn-secondary erp-btn-sm"
-                          disabled={isReceiving}
-                          onClick={() => handleQuickReceive(delivery.id)}
-                          style={{
-                            height: '28px',
-                            padding: '0 10px',
-                            fontSize: '12.5px',
-                            gap: '4px',
-                            opacity: isReceiving ? 0.7 : 1,
-                          }}
-                        >
-                          {isReceiving ? (
-                            <Loader2 size={12} className="erp-spin" />
-                          ) : (
-                            <Check size={12} />
-                          )}
-                          <span>Receive</span>
-                        </button>
+                      {/* Delivery content */}
+                      <div
+                        style={{
+                          flex: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '10px',
+                          padding: '6px 8px',
+                          borderRadius: 'var(--erp-radius-xs)',
+                          marginBottom: isLast ? '0' : '4px',
+                          transition: 'background-color 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--erp-surface-hover)';
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '14.5px', fontWeight: 600, color: 'var(--erp-text-main)', fontFamily: 'var(--erp-mono-font)' }}>
+                              {delivery.po_number}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: '12.5px',
+                                fontWeight: 500,
+                                color: isOverseas ? 'var(--erp-primary)' : 'var(--erp-text-muted)',
+                              }}
+                            >
+                              {delivery.channel}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '13.5px', color: 'var(--erp-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {delivery.supplier_name}
+                          </div>
+                          <div style={{ fontSize: '12.5px', color: 'var(--erp-text-light)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Calendar size={12} />
+                            <span>ETA: {formattedEta}</span>
+                          </div>
+                        </div>
+
+                        <div style={{ flexShrink: 0, alignSelf: 'center' }}>
+                          <button
+                            type="button"
+                            className="erp-link-btn"
+                            disabled={isReceiving}
+                            onClick={() => handleQuickReceive(delivery.id)}
+                            style={{
+                              fontSize: '13.5px',
+                              opacity: isReceiving ? 0.6 : 1,
+                              pointerEvents: isReceiving ? 'none' : 'auto',
+                            }}
+                          >
+                            {isReceiving ? (
+                              <Loader2 size={13} className="erp-spin" />
+                            ) : null}
+                            <span>Receive</span>
+                            {!isReceiving && <ChevronRight size={13} />}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );

@@ -13,6 +13,7 @@ import { ProjectsView } from './views/pages/ProjectsView';
 import { ProjectWorkflowView } from './views/pages/ProjectWorkflowView';
 import { InventoryView } from './views/pages/InventoryView';
 import { PurchasingView } from './views/pages/PurchasingView';
+import { PurchaseOrderDetailView } from './views/pages/PurchaseOrderDetailView';
 import { SalesView } from './views/pages/SalesView';
 import { SaleDetailView } from './views/pages/SaleDetailView';
 import { useState, useEffect } from 'react';
@@ -29,14 +30,17 @@ function RootLayout() {
       '/projects': 'Projects Management • ConstructPro',
       '/sale': 'Sales & Projects • ConstructPro',
       '/sales': 'Sales & Projects • ConstructPro',
-      '/inventory': 'Inventory Control • ConstructPro',
-      '/materials': 'Inventory Control • ConstructPro',
+      '/warehouse': 'Warehouse • ConstructPro',
+      '/inventory': 'Warehouse • ConstructPro',
+      '/materials': 'Warehouse • ConstructPro',
       '/purchasing': 'Suppliers & Purchasing • ConstructPro',
     };
     if (currentPath.startsWith('/projects/')) {
       document.title = 'Project Workspace • ConstructPro';
     } else if (currentPath.startsWith('/sale/')) {
       document.title = 'Sales Project Details • ConstructPro';
+    } else if (currentPath.startsWith('/purchasing/')) {
+      document.title = 'Purchase Order Details • ConstructPro';
     } else {
       document.title = titles[currentPath] || 'ConstructPro - Project & Stock Management';
     }
@@ -100,22 +104,34 @@ const projectWorkflowRoute = createRoute({
   component: ProjectWorkflowView,
 });
 
+const warehouseRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/warehouse',
+  component: InventoryView,
+});
+
 const inventoryRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/inventory',
-  component: InventoryView,
+  component: () => <Navigate to="/warehouse" replace />,
 });
 
 const materialsRedirectRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/materials',
-  component: () => <Navigate to="/inventory" replace />,
+  component: () => <Navigate to="/warehouse" replace />,
 });
 
 const purchasingRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/purchasing',
   component: PurchasingView,
+});
+
+const purchaseOrderDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/purchasing/$poId',
+  component: PurchaseOrderDetailView,
 });
 
 const reportsRoute = createRoute({
@@ -151,9 +167,11 @@ const routeTree = rootRoute.addChildren([
   saleRoute,
   saleDetailRoute,
   salesRedirectRoute,
+  warehouseRoute,
   inventoryRoute,
   materialsRedirectRoute,
   purchasingRoute,
+  purchaseOrderDetailRoute,
   reportsRoute,
 ]);
 

@@ -116,7 +116,7 @@ export const CustomersView: React.FC = () => {
             ) : (
               customers.map(cust => (
                 <tr key={cust.id}>
-                  <td style={{ fontWeight: 600 }}>{cust.name}</td>
+                  <td style={{ fontWeight: 400 }}>{cust.name}</td>
                   <td>{cust.company || '-'}</td>
                   <td>{cust.phone || '-'}</td>
                   <td>{cust.email || '-'}</td>

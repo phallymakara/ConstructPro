@@ -80,22 +80,32 @@ export const SaleDetailView: React.FC = () => {
     file_name: '',
   });
 
-  const loadDocuments = useCallback(() => {
+  const loadDocuments = useCallback(async () => {
     if (!projectId) return;
     try {
-      const saved = localStorage.getItem(`project_documents_${projectId}`);
-      if (saved) {
-        const parsed: ProjectDoc[] = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          // Exclude default placeholder documents
-          const userOnly = parsed.filter(
-            d => !d.is_default && d.uploaded_by !== 'Default' && d.uploaded_at !== 'Default' && d.id !== 1 && d.id !== 2
-          );
-          setProjectDocuments(userOnly);
-          return;
-        }
+      const docs = await api.get<ProjectDoc[]>(`/projects/${projectId}/documents`);
+      if (Array.isArray(docs)) {
+        const userOnly = docs.filter(
+          d => !d.is_default && d.uploaded_by !== 'Default' && d.uploaded_at !== 'Default' && d.id !== 1 && d.id !== 2
+        );
+        setProjectDocuments(userOnly);
+        return;
       }
-    } catch {}
+    } catch {
+      try {
+        const saved = localStorage.getItem(`project_documents_${projectId}`);
+        if (saved) {
+          const parsed: ProjectDoc[] = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            const userOnly = parsed.filter(
+              d => !d.is_default && d.uploaded_by !== 'Default' && d.uploaded_at !== 'Default' && d.id !== 1 && d.id !== 2
+            );
+            setProjectDocuments(userOnly);
+            return;
+          }
+        }
+      } catch { }
+    }
 
     setProjectDocuments([]);
   }, [projectId]);
@@ -104,35 +114,44 @@ export const SaleDetailView: React.FC = () => {
     loadDocuments();
   }, [loadDocuments]);
 
-  const handleUploadDocSubmit = (e: React.FormEvent) => {
+  const handleUploadDocSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newDoc.name.trim()) return;
+    if (!newDoc.name.trim() || !projectId) return;
 
-    const doc: ProjectDoc = {
-      id: Date.now(),
-      name: newDoc.name.trim(),
-      document_type: newDoc.document_type,
-      uploaded_by: formData.sales_person || 'Sales Representative',
-      file_name: newDoc.file_name || `${newDoc.name.toLowerCase().replace(/\s+/g, '_')}.pdf`,
-      uploaded_at: new Date().toISOString().split('T')[0],
-    };
-
-    const updated = [doc, ...projectDocuments];
-    setProjectDocuments(updated);
     try {
-      localStorage.setItem(`project_documents_${projectId}`, JSON.stringify(updated));
-    } catch {}
+      const payload = {
+        name: newDoc.name.trim(),
+        document_type: newDoc.document_type,
+        uploaded_by: formData.sales_person || 'Sales Representative',
+        file_name: newDoc.file_name || `${newDoc.name.toLowerCase().replace(/\s+/g, '_')}.pdf`,
+        uploaded_at: new Date().toISOString().split('T')[0],
+      };
+      const created = await api.post<ProjectDoc>(`/projects/${projectId}/documents`, payload);
+      const updated = [created, ...projectDocuments];
+      setProjectDocuments(updated);
+      try {
+        localStorage.setItem(`project_documents_${projectId}`, JSON.stringify(updated));
+      } catch { }
+    } catch (err: any) {
+      setPageError(err.message || 'Failed to save document to database');
+    }
 
     setNewDoc({ name: '', document_type: 'Quotation', file_name: '' });
     setIsUploadDocModalOpen(false);
   };
 
-  const handleDeleteDoc = (docId: number) => {
-    const updated = projectDocuments.filter(d => d.id !== docId);
-    setProjectDocuments(updated);
+  const handleDeleteDoc = async (docId: number) => {
+    if (!projectId) return;
     try {
-      localStorage.setItem(`project_documents_${projectId}`, JSON.stringify(updated));
-    } catch {}
+      await api.delete(`/projects/${projectId}/documents/${docId}`);
+      const updated = projectDocuments.filter(d => d.id !== docId);
+      setProjectDocuments(updated);
+      try {
+        localStorage.setItem(`project_documents_${projectId}`, JSON.stringify(updated));
+      } catch { }
+    } catch (err: any) {
+      setPageError(err.message || 'Failed to delete document from database');
+    }
   };
 
   const [formData, setFormData] = useState({
@@ -176,12 +195,21 @@ export const SaleDetailView: React.FC = () => {
 
       // Normalize status to sales stages: Draft, In Progress, Closed Won, or Closed Lost
       let initialStatus: ProjectStatus = 'Draft';
-      if (proj.source === 'sales_won' || proj.status === 'Closed Won' || proj.status === 'Incoming Project' || proj.status === 'Accepted' || proj.status === 'Completed') {
+      if (proj.source === 'sales_won' || proj.status === 'Closed Won' || proj.status === 'Accepted' || proj.status === 'Completed') {
         initialStatus = 'Closed Won';
-      } else if (proj.status === 'In Progress' || (proj.status as string) === 'Inprogress') {
-        initialStatus = 'In Progress';
       } else if (proj.status === 'Closed Lost') {
         initialStatus = 'Closed Lost';
+      } else if (
+        proj.status === 'In Progress' ||
+        (proj.status as string) === 'Inprogress' ||
+        proj.status === 'Incoming Project' ||
+        proj.status === 'Starting' ||
+        proj.status === 'Material Preparation' ||
+        proj.status === 'Production' ||
+        proj.status === 'Ready for Delivery' ||
+        proj.status === 'Installation'
+      ) {
+        initialStatus = 'In Progress';
       } else {
         initialStatus = 'Draft';
       }
@@ -220,7 +248,6 @@ export const SaleDetailView: React.FC = () => {
   const isAlreadyClosedWon =
     project?.source === 'sales_won' ||
     project?.status === 'Closed Won' ||
-    project?.status === 'Incoming Project' ||
     project?.status === 'Accepted' ||
     project?.status === 'Completed';
 
@@ -273,14 +300,12 @@ export const SaleDetailView: React.FC = () => {
     try {
       let resolvedCustomerId = formData.customer_id;
 
+      // Isolate customer record updates strictly to this project to avoid mutating other projects
       if (formData.customer_name.trim()) {
-        const found = customers.find(
-          c => c.name.toLowerCase() === formData.customer_name.trim().toLowerCase()
-        );
-        if (found) {
-          resolvedCustomerId = found.id;
+        if (project?.customer_id) {
+          resolvedCustomerId = project.customer_id;
           try {
-            await api.put<Customer>(`/customers/${found.id}`, {
+            await api.put<Customer>(`/customers/${project.customer_id}`, {
               name: formData.customer_name.trim(),
               contact_person: formData.contact_person || '',
               phone: formData.customer_phone || '',
@@ -301,7 +326,7 @@ export const SaleDetailView: React.FC = () => {
               address: formData.customer_address || '',
               preferred_contact_method: formData.preferred_contact_method || 'Phone',
               company: '',
-              notes: 'Created from Sales Portal',
+              notes: `Customer for project ${formData.project_name.trim()}`,
             });
             resolvedCustomerId = newCust.id;
             setCustomers(prev => [...prev, newCust]);
@@ -1022,7 +1047,7 @@ export const SaleDetailView: React.FC = () => {
                               title={`View ${doc.name}`}
                             >
                               <FileText size={15} style={{ color: 'var(--erp-primary)', flexShrink: 0 }} />
-                              <span style={{ fontWeight: 500 }}>{doc.name}</span>
+                              <span style={{ fontWeight: 400 }}>{doc.name}</span>
                               {doc.file_name && (
                                 <span style={{ fontSize: '11.5px', color: 'var(--erp-text-muted)' }}>
                                   ({doc.file_name})

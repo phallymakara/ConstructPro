@@ -36,7 +36,7 @@ export function calculateProjectDuration(startDate?: string, endDate?: string): 
 }
 
 export function calculateProjectProgressText(project: Project): { percent: number; text: string } {
-  const tasks = getProjectTasks(project.id);
+  const tasks = getProjectTasks(project.id, project);
   const metrics = calculateProjectTaskProgress(tasks, project.status);
 
   if (metrics.hasTasks && metrics.totalUnits > 0) {
@@ -47,46 +47,33 @@ export function calculateProjectProgressText(project: Project): { percent: numbe
     };
   }
 
-  // Fallback representation based on status
-  if (project.status === 'Completed') {
-    return { percent: 100, text: '100% (6/6 completed)' };
+  if (project.status === 'Completed' || project.status === 'Closed Won') {
+    return { percent: 100, text: '100% completed' };
   }
-  if (project.status === 'Starting') {
-    return { percent: 0, text: '0% (0/6 completed)' };
-  }
-  if (project.status === 'In Progress' || project.status === 'Production') {
-    return { percent: 50, text: '50% (3/6 completed)' };
-  }
-  if (project.status === 'Ready for Delivery' || project.status === 'Installation') {
-    return { percent: 85, text: '85% (5/6 completed)' };
-  }
-  if (project.status === 'Approved' || project.status === 'Material Preparation') {
-    return { percent: 33, text: '33% (2/6 completed)' };
-  }
-  const pct = Math.round(metrics.percent);
-  return {
-    percent: pct,
-    text: `${pct}% (${Math.round((pct / 100) * 6)}/6 completed)`,
-  };
+  return { percent: 0, text: '0% (0 completed)' };
 }
 
 export function normalizeSalesStatus(status?: string | null, source?: string | null): ProjectStatus {
-  if (source === 'sales_won') {
+  if (source === 'sales_won' || status === 'Closed Won') {
     return 'Closed Won';
-  }
-  if (
-    status === 'Incoming Project' ||
-    status === 'Closed Won' ||
-    status === 'Accepted' ||
-    status === 'Completed'
-  ) {
-    return 'Closed Won';
-  }
-  if (status === 'In Progress' || status === 'Inprogress') {
-    return 'In Progress';
   }
   if (status === 'Closed Lost') {
     return 'Closed Lost';
+  }
+  if (
+    status === 'In Progress' ||
+    status === 'Inprogress' ||
+    status === 'Incoming Project' ||
+    status === 'Starting' ||
+    status === 'Material Preparation' ||
+    status === 'Production' ||
+    status === 'Ready for Delivery' ||
+    status === 'Installation'
+  ) {
+    return 'In Progress';
+  }
+  if (status === 'Accepted' || status === 'Completed') {
+    return 'Closed Won';
   }
   return 'Draft';
 }

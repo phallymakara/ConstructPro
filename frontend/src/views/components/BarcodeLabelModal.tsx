@@ -11,7 +11,7 @@ interface BarcodeLabelModalProps {
 }
 
 export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({ material, onClose }) => {
-  const [labelFormat, setLabelFormat] = useState<'qr' | 'barcode' | 'both'>('qr');
+  const [labelFormat, setLabelFormat] = useState<'qr' | 'barcode'>('qr');
   const [qrSvg, setQrSvg] = useState<string>('');
 
   const barcodeValue = material?.barcode || material?.code || '';
@@ -21,7 +21,7 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({ material, 
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
       origin = `${window.location.protocol}//192.168.15.206:${window.location.port || '5174'}`;
     }
-    return `${origin}/inventory?picklist=${encodeURIComponent(barcodeValue)}`;
+    return `${origin}/warehouse?picklist=${encodeURIComponent(barcodeValue)}`;
   }, [barcodeValue]);
   const binaryPattern = useMemo(() => encodeCode128(barcodeValue), [barcodeValue]);
 
@@ -40,33 +40,56 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({ material, 
   if (!material) return null;
 
   return (
-    <Modal isOpen={!!material} onClose={onClose} title="Inventory Label">
+    <Modal isOpen={!!material} onClose={onClose} title="Warehouse Label">
       <div className="erp-modal-body" style={{ textAlign: 'center' }}>
-        {/* Format Selector: QR Code / 1D Barcode / Both */}
+        {/* Format Selector: QR Code / 1D Barcode */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
-          <div className="erp-segmented-control">
+          <div style={{ display: 'inline-flex', gap: '0', borderBottom: '1px solid var(--erp-border)' }}>
             <button
               type="button"
-              className={`erp-segmented-btn ${labelFormat === 'qr' ? 'active' : ''}`}
               onClick={() => setLabelFormat('qr')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 16px',
+                fontSize: '13.5px',
+                fontFamily: 'inherit',
+                fontWeight: labelFormat === 'qr' ? 600 : 500,
+                color: labelFormat === 'qr' ? 'var(--erp-primary)' : 'var(--erp-text-muted)',
+                background: 'none',
+                border: 'none',
+                borderBottom: labelFormat === 'qr' ? '2px solid var(--erp-primary)' : '2px solid transparent',
+                cursor: 'pointer',
+                transition: 'color 0.15s ease, border-color 0.15s ease',
+                marginBottom: '-1px',
+              }}
             >
               <QrIcon size={13} />
               <span>QR Code</span>
             </button>
             <button
               type="button"
-              className={`erp-segmented-btn ${labelFormat === 'barcode' ? 'active' : ''}`}
               onClick={() => setLabelFormat('barcode')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 16px',
+                fontSize: '13.5px',
+                fontFamily: 'inherit',
+                fontWeight: labelFormat === 'barcode' ? 600 : 500,
+                color: labelFormat === 'barcode' ? 'var(--erp-primary)' : 'var(--erp-text-muted)',
+                background: 'none',
+                border: 'none',
+                borderBottom: labelFormat === 'barcode' ? '2px solid var(--erp-primary)' : '2px solid transparent',
+                cursor: 'pointer',
+                transition: 'color 0.15s ease, border-color 0.15s ease',
+                marginBottom: '-1px',
+              }}
             >
               <BarcodeIcon size={13} />
               <span>1D Barcode</span>
-            </button>
-            <button
-              type="button"
-              className={`erp-segmented-btn ${labelFormat === 'both' ? 'active' : ''}`}
-              onClick={() => setLabelFormat('both')}
-            >
-              <span>Both</span>
             </button>
           </div>
         </div>
@@ -94,7 +117,7 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({ material, 
           </div>
 
           {/* QR Code */}
-          {(labelFormat === 'qr' || labelFormat === 'both') && qrSvg && (
+          {labelFormat === 'qr' && qrSvg && (
             <div
               style={{
                 margin: '6px 0',
@@ -108,7 +131,7 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({ material, 
           )}
 
           {/* 1D Barcode */}
-          {(labelFormat === 'barcode' || labelFormat === 'both') && (
+          {labelFormat === 'barcode' && (
             <div style={{ margin: '6px 0', padding: '6px 10px', backgroundColor: '#ffffff' }}>
               <svg
                 width="240"

@@ -360,21 +360,25 @@ export const SalesView: React.FC = () => {
             </button>
           </div>
         ) : viewMode === 'card' ? (
-          /* Card Grid View Template (Matching ProjectsView) */
+          /* Card Grid View (4 Columns) */
           <div
+            className="erp-projects-cards-container"
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-              gap: '16px',
+              flex: 1,
+              minHeight: 0,
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              paddingRight: '4px',
+              paddingBottom: '20px',
             }}
           >
-            {projects.map(project => {
+            <div className="erp-cards-grid-4col">
+              {projects.map(project => {
               const duration = calculateProjectDuration(project.start_date, project.deadline_date);
 
               const customerName = project.customer?.name || (project.customer_id ? `Customer #${project.customer_id}` : 'Unassigned Customer');
               const contactPerson = project.customer_representative || project.customer?.contact_person || '-';
               const telephone = project.customer?.phone || 'No phone recorded';
-              const preferredMethod = project.preferred_contact_method || project.customer?.preferred_contact_method || 'Phone';
 
               return (
                 <div
@@ -400,18 +404,19 @@ export const SalesView: React.FC = () => {
                     {/* Card Header: Project Number, Name, Status Badge */}
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
                       <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontSize: '11.5px', color: 'var(--erp-text-muted)', marginBottom: '3px' }}>
+                        <div style={{ fontSize: '13px', color: 'var(--erp-text-muted)', marginBottom: '3px' }}>
                           {project.project_number}
                         </div>
                         <h3
                           style={{
-                            fontSize: '16px',
-                            fontWeight: 600,
+                            fontSize: '13.5px',
+                            fontWeight: 400,
                             color: 'var(--erp-text-main)',
                             margin: 0,
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap',
+                            lineHeight: 1.35,
                           }}
                           title={project.project_name}
                         >
@@ -420,7 +425,7 @@ export const SalesView: React.FC = () => {
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                        <StatusBadge status={project.status} style={{ fontSize: '12px', padding: '2px 8px' }} />
+                        <StatusBadge status={project.status} style={{ fontSize: '11.5px', padding: '2px 8px' }} />
 
                         <div className="erp-dropdown-container">
                           <button
@@ -547,14 +552,14 @@ export const SalesView: React.FC = () => {
                     </div>
 
                     {/* Metadata Details */}
-                    <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px' }}>
+                    <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       {/* Customer & Contact Person */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', color: 'var(--erp-text-main)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--erp-text-main)' }}>
                         <User size={14} style={{ color: 'var(--erp-text-muted)', flexShrink: 0 }} />
-                        <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontWeight: 400, fontSize: '13.5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {customerName}
                         </span>
-                        {contactPerson !== '-' && (
+                        {contactPerson !== '-' && contactPerson !== customerName && (
                           <span style={{ color: 'var(--erp-text-muted)', fontSize: '12px' }}>
                             ({contactPerson})
                           </span>
@@ -562,7 +567,7 @@ export const SalesView: React.FC = () => {
                       </div>
 
                       {/* Project Type */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', color: 'var(--erp-text-muted)', fontSize: '12.5px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--erp-text-muted)', fontSize: '12.5px' }}>
                         <Building2 size={14} style={{ flexShrink: 0 }} />
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {project.project_type || 'Window & Door Installation'}
@@ -570,29 +575,26 @@ export const SalesView: React.FC = () => {
                       </div>
 
                       {/* Location */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', color: 'var(--erp-text-main)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--erp-text-main)', fontSize: '12.5px' }}>
                         <MapPin size={14} style={{ color: 'var(--erp-text-muted)', flexShrink: 0 }} />
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {project.location || 'Not Specified'}
                         </span>
                       </div>
 
-                      {/* Phone & Contact Method */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', color: 'var(--erp-text-muted)', fontSize: '12.5px' }}>
+                      {/* Phone */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--erp-text-muted)', fontSize: '12.5px' }}>
                         <Phone size={14} style={{ flexShrink: 0 }} />
                         <span>{telephone}</span>
-                        <span style={{ fontSize: '11px', padding: '1px 6px', borderRadius: '4px', border: '1px solid var(--erp-border)', backgroundColor: '#ffffff' }}>
-                          {preferredMethod}
-                        </span>
                       </div>
 
                       {/* Schedule: Dates & Duration */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', color: 'var(--erp-text-muted)', fontSize: '12.5px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--erp-text-muted)', fontSize: '12.5px' }}>
                         <Calendar size={14} style={{ flexShrink: 0 }} />
                         <span>
                           {formatDateDisplay(project.start_date)} – {formatDateDisplay(project.deadline_date)}
                         </span>
-                        <span style={{ fontWeight: 600, color: 'var(--erp-primary)', marginLeft: 'auto' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--erp-primary)', marginLeft: 'auto', fontSize: '12.5px' }}>
                           {duration}
                         </span>
                       </div>
@@ -601,6 +603,7 @@ export const SalesView: React.FC = () => {
                 </div>
               );
             })}
+            </div>
           </div>
         ) : (
           /* Table View Template (Matching ProjectsView) */
@@ -631,7 +634,7 @@ export const SalesView: React.FC = () => {
                       title={`Click to view and edit details for ${project.project_name}`}
                     >
                       <td>
-                        <div style={{ fontWeight: 400, fontSize: '15.5px', color: 'var(--erp-text-main)' }}>
+                        <div style={{ fontWeight: 400, fontSize: '14px', color: 'var(--erp-text-main)' }}>
                           {project.project_name}
                         </div>
                         <div style={{ fontSize: '12px', color: 'var(--erp-text-muted)' }}>
@@ -639,7 +642,7 @@ export const SalesView: React.FC = () => {
                         </div>
                       </td>
                       <td>
-                        <div style={{ fontSize: '14.5px', color: 'var(--erp-text-main)', fontWeight: 500 }}>
+                        <div style={{ fontSize: '14px', color: 'var(--erp-text-main)', fontWeight: 400 }}>
                           {customerName}
                         </div>
                         {telephone !== 'No phone recorded' && (

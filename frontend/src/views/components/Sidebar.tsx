@@ -18,7 +18,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath }) => {
     { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="erp-nav-item-icon" /> },
     { to: '/sale', label: 'Sales', icon: <Briefcase className="erp-nav-item-icon" /> },
     { to: '/projects', label: 'Projects', icon: <FolderKanban className="erp-nav-item-icon" /> },
-    { to: '/inventory', label: 'Inventory', icon: <Package className="erp-nav-item-icon" /> },
+    { to: '/warehouse', label: 'Warehouse', icon: <Package className="erp-nav-item-icon" /> },
     { to: '/purchasing', label: 'Purchasing', icon: <ShoppingCart className="erp-nav-item-icon" /> },
   ];
 
@@ -35,7 +35,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath }) => {
 
       <ul className="erp-nav-list">
         {navItems.map(item => {
-          const isActive = currentPath.startsWith(item.to);
+          const isActive =
+            currentPath.startsWith(item.to) ||
+            (item.to === '/warehouse' && (currentPath.startsWith('/inventory') || currentPath.startsWith('/materials')));
           return (
             <li key={item.to}>
               <Link

@@ -1,6 +1,14 @@
 import argparse
 import socket
+import sys
 import uvicorn
+
+# Reconfigure stdout/stderr to UTF-8 to prevent charmap encoding errors
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
+
 from app.core.config import settings
 
 
@@ -38,7 +46,24 @@ def main():
         action="store_true",
         help="Disable auto-reload",
     )
+    parser.add_argument(
+        "--seed",
+        action="store_true",
+        help="Run database seed script (Khmer dataset) and exit",
+    )
     args, _ = parser.parse_known_args()
+
+    if args.seed:
+        print("\n[ConstructPro] 📦 Starting Khmer database seeding...")
+        import sys
+        import os
+        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if backend_dir not in sys.path:
+            sys.path.insert(0, backend_dir)
+        from seed_khmer_data import seed_khmer_database
+        seed_khmer_database()
+        print("[ConstructPro] ✅ Database seeding finished successfully.\n")
+        return
 
     active_port = find_available_port(args.port, host="127.0.0.1")
 

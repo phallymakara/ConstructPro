@@ -75,6 +75,13 @@ def get_purchase_orders(db: Session = Depends(get_db)):
     orders = db.query(PurchaseOrder).order_by(PurchaseOrder.created_at.desc()).all()
     return [_format_po(po) for po in orders]
 
+@router.get("/orders/{po_id}", response_model=PurchaseOrderOut)
+def get_purchase_order(po_id: int, db: Session = Depends(get_db)):
+    po = db.query(PurchaseOrder).filter(PurchaseOrder.id == po_id).first()
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    return _format_po(po)
+
 @router.post("/orders", response_model=PurchaseOrderOut, status_code=status.HTTP_201_CREATED)
 def create_purchase_order(payload: PurchaseOrderCreate, db: Session = Depends(get_db)):
     existing = db.query(PurchaseOrder).filter(PurchaseOrder.po_number == payload.po_number).first()

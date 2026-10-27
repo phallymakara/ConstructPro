@@ -1,38 +1,22 @@
 import type { ProjectStatus, ProjectTask } from '../models/types';
 
 export const getStatusFallbackProgress = (status: ProjectStatus | string): number => {
-  switch (status) {
-    case 'Inquiry': return 0;
-    case 'Discussion': return 5;
-    case 'Draft': return 5;
-    case 'Quotation': return 15;
-    case 'Negotiation': return 20;
-    case 'Accepted': return 25;
-    case 'Approved': return 25;
-    case 'Closed Won': return 100;
-    case 'Closed Lost': return 0;
-    case 'Incoming Project': return 0;
-    case 'Starting': return 0;
-    case 'In Progress':
-    case 'Inprogress': return 35;
-    case 'Overdue': return 50;
-    case 'Material Preparation': return 45;
-    case 'Production': return 65;
-    case 'Ready for Delivery': return 85;
-    case 'Installation': return 95;
-    case 'Completed': return 100;
-    case 'Cancelled':
-    case 'Canceled': return 0;
-    default: return 0;
-  }
+  if (status === 'Completed' || status === 'Closed Won') return 100;
+  return 0;
 };
 
-export const getProjectTasks = (projectId: number | string): ProjectTask[] => {
+export const getProjectTasks = (projectId: number | string, fallbackProject?: { tasks?: ProjectTask[] }): ProjectTask[] => {
+  if (fallbackProject?.tasks && Array.isArray(fallbackProject.tasks) && fallbackProject.tasks.length > 0) {
+    return fallbackProject.tasks.filter((t: ProjectTask) => !(t.id === 'task-1' && t.name === 'ការងារកាត់ដែកគ្រោង' && (!t.subtasks || t.subtasks.every((st: any) => (st.progress ?? 0) === 0 && !st.completed))));
+  }
   try {
     const raw = localStorage.getItem(`project_tasks_${projectId}`);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        // Exclude the boilerplate task so separate projects don't share dummy tasks
+        return parsed.filter((t: ProjectTask) => !(t.id === 'task-1' && t.name === 'ការងារកាត់ដែកគ្រោង' && (!t.subtasks || t.subtasks.every((st: any) => (st.progress ?? 0) === 0 && !st.completed))));
+      }
     }
   } catch {}
   return [];
@@ -128,6 +112,7 @@ export const calculateDynamicProjectStatus = (
     deadline_date?: string | null;
     start_date?: string | null;
     id?: number | string;
+    tasks?: ProjectTask[];
   },
   tasks?: ProjectTask[]
 ): ProjectStatus => {
@@ -142,13 +127,19 @@ export const calculateDynamicProjectStatus = (
     return 'Completed';
   }
 
-  // Preserve explicit sales stages and handover statuses without dynamic override
-  if ((project as any)?.source === 'sales' && currentStatus === 'In Progress') {
-    return 'In Progress';
+  if (currentStatus === 'Incoming Project') {
+    const projectTasks = tasks !== undefined
+      ? tasks
+      : (project?.id ? getProjectTasks(project.id, project) : []);
+    const metrics = calculateProjectTaskProgress(projectTasks, currentStatus);
+    if (metrics.hasTasks && metrics.percent > 0) {
+      if (metrics.percent === 100) return 'Completed';
+      return 'In Progress';
+    }
+    return 'Incoming Project';
   }
 
   const FIXED_STAGES: (ProjectStatus | string)[] = [
-    'Incoming Project',
     'Closed Won',
     'Closed Lost',
     'Draft',
@@ -163,7 +154,7 @@ export const calculateDynamicProjectStatus = (
 
   const projectTasks = tasks !== undefined
     ? tasks
-    : (project?.id ? getProjectTasks(project.id) : []);
+    : (project?.id ? getProjectTasks(project.id, project) : []);
 
   const metrics = calculateProjectTaskProgress(projectTasks, currentStatus);
 

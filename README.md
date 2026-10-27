@@ -191,7 +191,43 @@ Start the development server:
 npm run dev
 ```
 
-Open your browser and navigate to `http://localhost:5173`.
+Open your browser and navigate to `http://localhost:5174`.
+
+### 4. Production Deployment with Docker
+
+To deploy the production stack on a server:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+This starts:
+- Database: PostgreSQL on port `5432` with data persisted in a Docker volume.
+- Backend: Production FastAPI server on port `8001` running with multiple workers.
+- Frontend: High-performance Nginx reverse proxy on port `80`, serving pre-compiled static assets and forwarding `/api` calls to the backend container.
+
+### 5. Seeding Database at Production
+
+To populate the database with realistic Khmer data on a new server or freshly deployed container, run:
+
+```bash
+docker compose -f docker-compose.prod.yml exec backend uv run constructpro --seed
+```
+
+Or execute the script directly inside the backend container:
+
+```bash
+docker compose -f docker-compose.prod.yml exec backend uv run python seed_khmer_data.py
+```
+
+For local environments:
+
+```bash
+cd backend
+uv run constructpro --seed
+```
+
+This initializes all tables if not already present, clears prior test records safely in dependency order, and seeds complete Khmer datasets across product categories, materials, suppliers, customers, projects, quotations, tasks, and stock movements.
 
 ## Configuration Options
 

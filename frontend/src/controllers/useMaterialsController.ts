@@ -170,16 +170,22 @@ export function useMaterialsController() {
     }
   };
 
-  const adjustStock = async (movementType: string, quantity: number, notes?: string): Promise<boolean> => {
+  const adjustStock = async (
+    movementType: string,
+    quantity: number,
+    notes?: string,
+    projectId?: number
+  ): Promise<boolean> => {
     if (!selectedMaterialForAdjust) return false;
-    return recordStockMovement(selectedMaterialForAdjust.id, movementType, quantity, notes);
+    return recordStockMovement(selectedMaterialForAdjust.id, movementType, quantity, notes, projectId);
   };
 
   const recordStockMovement = async (
     materialId: number,
     movementType: string,
     quantity: number,
-    notes?: string
+    notes?: string,
+    projectId?: number
   ): Promise<boolean> => {
     setActionLoading(true);
     setErrorMessage(null);
@@ -187,6 +193,7 @@ export function useMaterialsController() {
       const targetMat = materials.find(m => m.id === materialId);
       const newMovement = await api.post<StockMovement>('/materials/movements', {
         material_id: materialId,
+        project_id: projectId || null,
         movement_type: movementType,
         quantity: quantity,
         unit_cost: targetMat?.unit_cost || 0,
@@ -198,11 +205,11 @@ export function useMaterialsController() {
         prev.map(m => {
           if (m.id !== materialId) return m;
           let newStock = m.current_stock;
-          if (movementType === 'Stock In' || movementType === 'Receipt' || movementType === 'Return') {
+          if (movementType === 'Stock In' || movementType === 'Receipt' || movementType === 'Return' || movementType === 'Return Stock') {
             newStock += quantity;
           } else if (movementType === 'Stock Out' || movementType === 'Issue' || movementType === 'Wastage') {
             newStock = Math.max(0, newStock - quantity);
-          } else if (movementType === 'Adjustment') {
+          } else if (movementType === 'Adjustment' || movementType === 'Direct Adjustment') {
             newStock = quantity;
           }
           return {

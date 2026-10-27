@@ -207,7 +207,14 @@ export const ProjectWorkflowView: React.FC = () => {
     setErrorMessage('');
     try {
       const projData = await api.get<Project>(`/projects/${projectId}`);
-      setProject(projData);
+      let opStatus = projData.status;
+      if ((projData.source === 'sales' && projData.status === 'In Progress') || projData.status === 'Closed Won') {
+        opStatus = 'Incoming Project';
+      }
+      setProject({
+        ...projData,
+        status: opStatus,
+      });
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to load project details');
     } finally {
@@ -302,6 +309,7 @@ export const ProjectWorkflowView: React.FC = () => {
   }, [project?.id, project?.material_requirements]);
 
   // Synchronize documents from storage or initialize default documents
+  // Synchronize documents from backend database
   useEffect(() => {
     if (!project) return;
     const defaultDoc1: ProjectDoc = {
@@ -323,93 +331,42 @@ export const ProjectWorkflowView: React.FC = () => {
       is_default: true,
     };
 
-    try {
-      const saved = localStorage.getItem(`project_documents_${project.id}`);
-      if (saved) {
-        const parsed: ProjectDoc[] = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const updated = parsed.map(d => {
-            if (d.id === 1) return { ...d, ...defaultDoc1, document_type: 'Specification' };
-            if (d.id === 2) return { ...d, ...defaultDoc2, document_type: 'Schedule' };
-            return { ...d, document_type: formatShortDocType(d.document_type, d.id) };
-          });
-          const has1 = updated.some(d => d.id === 1);
-          const has2 = updated.some(d => d.id === 2);
-          const merged = [
-            ...(has1 ? [] : [defaultDoc1]),
-            ...(has2 ? [] : [defaultDoc2]),
-            ...updated,
-          ];
-          setProjectDocuments(merged);
-          localStorage.setItem(`project_documents_${project.id}`, JSON.stringify(merged));
-          return;
-        }
-      }
-    } catch {}
+    // DB documents for this project
+    const dbDocs: ProjectDoc[] = ((project.documents as any) || []).map((d: any) => ({
+      id: d.id,
+      name: d.name,
+      document_type: formatShortDocType(d.document_type || 'General', d.id),
+      uploaded_by: d.uploaded_by || 'Default',
+      file_name: d.file_name || undefined,
+      uploaded_at: d.uploaded_at || '',
+      is_default: d.is_default,
+    }));
 
-    const defaultDocs: ProjectDoc[] = [defaultDoc1, defaultDoc2];
-    setProjectDocuments(defaultDocs);
-    try {
-      localStorage.setItem(`project_documents_${project.id}`, JSON.stringify(defaultDocs));
-    } catch {}
-  }, [project?.id, project?.start_date]);
+    // Filter user documents (non-default)
+    const userDocs = dbDocs.filter(d => !d.is_default && d.id !== 1 && d.id !== 2);
+    const merged = [defaultDoc1, defaultDoc2, ...userDocs];
+    setProjectDocuments(merged);
+  }, [project?.id, project?.documents]);
 
-  // Synchronize tasks from storage
+  // Synchronize tasks from backend database
   useEffect(() => {
     if (!project) return;
-    const projectTasks = getProjectTasks(project.id);
+    // Prefer project.tasks returned by the database API
+    const projectTasks = (project.tasks && Array.isArray(project.tasks) && project.tasks.length > 0)
+      ? project.tasks
+      : getProjectTasks(project.id);
     const defaultStart = project.actual_start_date || project.start_date || new Date().toISOString().split('T')[0];
     const defaultEnd = project.actual_end_date || project.deadline_date || new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0];
 
-    let tasksToUse = projectTasks;
-    if (tasksToUse.length === 0) {
-      tasksToUse = [
-        {
-          id: 'task-1',
-          name: 'ការងារកាត់ដែកគ្រោង',
-          status: 'Todo',
-          start_date: defaultStart,
-          end_date: defaultEnd,
-          est_end_date: defaultEnd,
-          subtasks: [
-            {
-              id: 'subtask-1-1',
-              title: 'ដែកឆ្អឹង',
-              progress: 0,
-              completed: false,
-              start_date: defaultStart,
-              est_end_date: defaultEnd,
-            },
-            {
-              id: 'subtask-1-2',
-              title: 'ដែកគ្រោង',
-              progress: 0,
-              completed: false,
-              start_date: defaultStart,
-              est_end_date: defaultEnd,
-            },
-            {
-              id: 'subtask-1-3',
-              title: 'គ្រឿងក្រោម',
-              progress: 0,
-              completed: false,
-              start_date: defaultStart,
-              est_end_date: defaultEnd,
-            },
-            {
-              id: 'subtask-1-4',
-              title: 'តម្លើងដែក',
-              progress: 0,
-              completed: false,
-              start_date: defaultStart,
-              est_end_date: defaultEnd,
-            },
-          ],
-        },
-      ];
-    }
+    const isAutoInjectedBoilerplate = (t: ProjectTask) =>
+      t.id === 'task-1' &&
+      t.name === 'ការងារកាត់ដែកគ្រោង' &&
+      (!t.subtasks || t.subtasks.every(st => (st.progress ?? 0) === 0 && !st.completed));
 
-    const normalized = tasksToUse.map(t => {
+    // Exclude any auto-injected boilerplate so each project has strictly its own tasks
+    const cleanedTasks = projectTasks.filter(t => !isAutoInjectedBoilerplate(t));
+
+    const normalized = cleanedTasks.map(t => {
       const taskStart = t.start_date || defaultStart;
       const taskEnd = t.est_end_date || t.end_date || defaultEnd;
       return {
@@ -427,21 +384,29 @@ export const ProjectWorkflowView: React.FC = () => {
       };
     });
     setTasks(normalized);
-    saveProjectTasks(project.id, normalized);
-  }, [project?.id, project?.start_date, project?.deadline_date, project?.actual_start_date, project?.actual_end_date]);
+  }, [project?.id, project?.tasks, project?.start_date, project?.deadline_date, project?.actual_start_date, project?.actual_end_date]);
 
   const handleUpdateTasks = async (newTasks: ProjectTask[]) => {
     setTasks(newTasks);
     if (project) {
+      // Save directly to the isolated database for this project
+      try {
+        await api.put(`/projects/${project.id}/tasks`, newTasks);
+      } catch (err) {
+        console.error('Failed to sync tasks to database', err);
+      }
       saveProjectTasks(project.id, newTasks);
+
       const nextStatus = calculateDynamicProjectStatus(project, newTasks);
       if (project.status !== nextStatus && project.status !== 'Cancelled') {
         try {
           await api.put(`/projects/${project.id}`, { status: nextStatus });
-          setProject(prev => prev ? { ...prev, status: nextStatus } : prev);
+          setProject(prev => prev ? { ...prev, status: nextStatus, tasks: newTasks } : prev);
         } catch {
           // Keep local state responsive
         }
+      } else {
+        setProject(prev => prev ? { ...prev, tasks: newTasks } : prev);
       }
     }
   };
@@ -919,38 +884,57 @@ export const ProjectWorkflowView: React.FC = () => {
   };
 
   // Tab 4: Document Handlers
-  const handleUploadDocSubmit = (e: React.FormEvent) => {
+  const handleUploadDocSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newDoc.name.trim()) return;
-    const docItem: ProjectDoc = {
-      id: Date.now(),
-      name: newDoc.name.trim(),
-      document_type: formatShortDocType(newDoc.document_type || 'General'),
-      uploaded_by: 'Admin',
-      file_name: newDoc.file_name || `${newDoc.name.trim().toLowerCase().replace(/\s+/g, '_')}.pdf`,
-      uploaded_at: new Date().toLocaleDateString(),
-    };
-    const updated = [...projectDocuments, docItem];
-    setProjectDocuments(updated);
-    if (project) {
+    if (!newDoc.name.trim() || !project) return;
+    try {
+      const payload = {
+        name: newDoc.name.trim(),
+        document_type: formatShortDocType(newDoc.document_type || 'General'),
+        uploaded_by: 'Admin',
+        file_name: newDoc.file_name || `${newDoc.name.trim().toLowerCase().replace(/\s+/g, '_')}.pdf`,
+        uploaded_at: new Date().toLocaleDateString(),
+        is_default: false,
+      };
+      const created = await api.post<ProjectDoc>(`/projects/${project.id}/documents`, payload);
+      const docItem: ProjectDoc = {
+        ...created,
+        document_type: formatShortDocType(created.document_type || 'General', created.id),
+      };
+      const updated = [...projectDocuments, docItem];
+      setProjectDocuments(updated);
       try {
         localStorage.setItem(`project_documents_${project.id}`, JSON.stringify(updated));
       } catch {}
+    } catch {
+      const docItem: ProjectDoc = {
+        id: Date.now(),
+        name: newDoc.name.trim(),
+        document_type: formatShortDocType(newDoc.document_type || 'General'),
+        uploaded_by: 'Admin',
+        file_name: newDoc.file_name || `${newDoc.name.trim().toLowerCase().replace(/\s+/g, '_')}.pdf`,
+        uploaded_at: new Date().toLocaleDateString(),
+      };
+      const updated = [...projectDocuments, docItem];
+      setProjectDocuments(updated);
     }
     setNewDoc({ name: '', document_type: 'General', file_name: '' });
     setIsUploadDocModalOpen(false);
   };
 
-  const handleDeleteDoc = (id: number) => {
+  const handleDeleteDoc = async (id: number) => {
     const docToDelete = projectDocuments.find(d => d.id === id);
     if (id === 1 || id === 2 || docToDelete?.is_default) return;
-    const updated = projectDocuments.filter(d => d.id !== id);
-    setProjectDocuments(updated);
     if (project) {
       try {
+        await api.delete(`/projects/${project.id}/documents/${id}`);
+      } catch {}
+      try {
+        const updated = projectDocuments.filter(d => d.id !== id);
         localStorage.setItem(`project_documents_${project.id}`, JSON.stringify(updated));
       } catch {}
     }
+    setProjectDocuments(prev => prev.filter(d => d.id !== id));
   };
 
   const customerDisplayName = project?.customer?.name || (project as any)?.customer_name || 'Valued Customer';

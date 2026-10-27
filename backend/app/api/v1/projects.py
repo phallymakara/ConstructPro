@@ -1,15 +1,19 @@
+import time
+from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.entities import (
-    Project, ProjectItem, Customer, Material, ProjectMaterialRequirement, ProjectPayment, ProjectWorkerLog
+    Project, ProjectItem, Customer, Material, ProjectMaterialRequirement, ProjectPayment, ProjectWorkerLog,
+    ProjectTask, ProjectSubtask, ProjectDocument
 )
 from app.schemas.schemas import (
     ProjectCreate, ProjectUpdate, ProjectOut,
     ProjectItemCreate, ProjectItemOut, MaterialRequirementOut, MaterialRequirementCreate,
     ProjectPaymentCreate, ProjectPaymentOut,
-    ProjectWorkerLogCreate, ProjectWorkerLogOut
+    ProjectWorkerLogCreate, ProjectWorkerLogOut,
+    ProjectTaskSchema, ProjectDocumentCreate, ProjectDocumentOut
 )
 from app.services.material_planning_service import (
     calculate_and_sync_project_materials, reserve_project_materials
@@ -60,6 +64,45 @@ def _format_project(p: Project) -> dict:
             "created_at": wl.created_at,
         })
 
+    tasks_data = []
+    for t in (getattr(p, "tasks", []) or []):
+        subtasks_data = []
+        for st in (getattr(t, "subtasks", []) or []):
+            subtasks_data.append({
+                "id": st.subtask_id or str(st.id),
+                "title": st.title,
+                "description": st.description,
+                "progress": st.progress or 0.0,
+                "completed": bool(st.completed),
+                "start_date": st.start_date,
+                "est_end_date": st.est_end_date,
+            })
+        tasks_data.append({
+            "id": t.task_id or str(t.id),
+            "name": t.name,
+            "description": t.description,
+            "status": t.status or "Todo",
+            "start_date": t.start_date,
+            "end_date": t.end_date,
+            "est_end_date": t.est_end_date,
+            "subtasks": subtasks_data,
+        })
+
+    docs_data = []
+    for d in (getattr(p, "documents", []) or []):
+        docs_data.append({
+            "id": d.id,
+            "project_id": d.project_id,
+            "name": d.name,
+            "document_type": d.document_type or "Specification",
+            "file_name": d.file_name,
+            "file_url": d.file_url,
+            "uploaded_by": d.uploaded_by or "Default",
+            "uploaded_at": d.uploaded_at or "",
+            "is_default": bool(d.is_default),
+            "created_at": d.created_at,
+        })
+
     return {
         "id": p.id,
         "project_number": p.project_number,
@@ -97,6 +140,8 @@ def _format_project(p: Project) -> dict:
         "material_requirements": reqs,
         "payments": payments_data,
         "worker_logs": worker_logs_data,
+        "tasks": tasks_data,
+        "documents": docs_data,
         "preferred_contact_method": getattr(p, "preferred_contact_method", None) or (getattr(p.customer, 'preferred_contact_method', None) if p.customer else "Phone") or "Phone",
         "source": getattr(p, "source", None) or "project",
     }
@@ -479,5 +524,152 @@ def log_worker_hours(project_id: int, payload: ProjectWorkerLogCreate, db: Sessi
     db.commit()
     db.refresh(log)
     return log
+
+
+@router.get("/{project_id}/tasks", response_model=List[ProjectTaskSchema])
+def get_project_tasks(project_id: int, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    tasks_data = []
+    for t in (project.tasks or []):
+        subtasks_data = []
+        for st in (t.subtasks or []):
+            subtasks_data.append({
+                "id": st.subtask_id or str(st.id),
+                "title": st.title,
+                "description": st.description,
+                "progress": st.progress or 0.0,
+                "completed": bool(st.completed),
+                "start_date": st.start_date,
+                "est_end_date": st.est_end_date,
+            })
+        tasks_data.append({
+            "id": t.task_id or str(t.id),
+            "name": t.name,
+            "description": t.description,
+            "status": t.status or "Todo",
+            "start_date": t.start_date,
+            "end_date": t.end_date,
+            "est_end_date": t.est_end_date,
+            "subtasks": subtasks_data,
+        })
+    return tasks_data
+
+
+@router.put("/{project_id}/tasks", response_model=List[ProjectTaskSchema])
+def update_project_tasks(project_id: int, payload: List[ProjectTaskSchema], db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Transactional replacement of tasks for this specific project
+    db.query(ProjectTask).filter(ProjectTask.project_id == project_id).delete(synchronize_session="fetch")
+
+    for task_idx, t_in in enumerate(payload):
+        task_entity = ProjectTask(
+            project_id=project_id,
+            task_id=t_in.id or f"task-{task_idx + 1}",
+            name=t_in.name,
+            description=t_in.description,
+            status=t_in.status or "Todo",
+            start_date=t_in.start_date,
+            end_date=t_in.end_date,
+            est_end_date=t_in.est_end_date,
+            sort_order=task_idx,
+        )
+        db.add(task_entity)
+        db.flush()
+
+        for sub_idx, st_in in enumerate(t_in.subtasks or []):
+            subtask_entity = ProjectSubtask(
+                task_id=task_entity.id,
+                subtask_id=st_in.id or f"subtask-{task_idx + 1}-{sub_idx + 1}",
+                title=st_in.title,
+                description=st_in.description,
+                progress=st_in.progress or 0.0,
+                completed=bool(st_in.completed),
+                start_date=st_in.start_date,
+                est_end_date=st_in.est_end_date,
+                sort_order=sub_idx,
+            )
+            db.add(subtask_entity)
+
+    db.commit()
+    db.refresh(project)
+
+    # Return refreshed tasks
+    tasks_data = []
+    for t in (project.tasks or []):
+        subtasks_data = []
+        for st in (t.subtasks or []):
+            subtasks_data.append({
+                "id": st.subtask_id or str(st.id),
+                "title": st.title,
+                "description": st.description,
+                "progress": st.progress or 0.0,
+                "completed": bool(st.completed),
+                "start_date": st.start_date,
+                "est_end_date": st.est_end_date,
+            })
+        tasks_data.append({
+            "id": t.task_id or str(t.id),
+            "name": t.name,
+            "description": t.description,
+            "status": t.status or "Todo",
+            "start_date": t.start_date,
+            "end_date": t.end_date,
+            "est_end_date": t.est_end_date,
+            "subtasks": subtasks_data,
+        })
+    return tasks_data
+
+
+@router.get("/{project_id}/documents", response_model=List[ProjectDocumentOut])
+def get_project_documents(project_id: int, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    docs = db.query(ProjectDocument).filter(ProjectDocument.project_id == project_id).order_by(ProjectDocument.id.desc()).all()
+    return docs
+
+
+@router.post("/{project_id}/documents", response_model=ProjectDocumentOut, status_code=status.HTTP_201_CREATED)
+def create_project_document(project_id: int, payload: ProjectDocumentCreate, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    doc = ProjectDocument(
+        project_id=project_id,
+        name=payload.name.strip(),
+        document_type=payload.document_type or "Specification",
+        file_name=payload.file_name,
+        file_url=payload.file_url,
+        uploaded_by=payload.uploaded_by or "Default",
+        uploaded_at=payload.uploaded_at or datetime.utcnow().strftime("%Y-%m-%d"),
+        is_default=bool(payload.is_default),
+    )
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+    return doc
+
+
+@router.delete("/{project_id}/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_project_document(project_id: int, document_id: int, db: Session = Depends(get_db)):
+    doc = db.query(ProjectDocument).filter(
+        ProjectDocument.project_id == project_id,
+        ProjectDocument.id == document_id
+    ).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    db.delete(doc)
+    db.commit()
+    return None
+
 
 

@@ -42,6 +42,8 @@ services:
       dockerfile: ../docker/frontend/Dockerfile.dev
     container_name: constructpro_frontend
     restart: unless-stopped
+    environment:
+      - VITE_BACKEND_URL=http://backend:8001
     ports:
       - "5174:5174"
     volumes:

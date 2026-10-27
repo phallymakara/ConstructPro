@@ -239,13 +239,13 @@ def create_stock_movement(payload: StockMovementCreate, db: Session = Depends(ge
 
     # Adjust material stock according to movement type (including Stock In & Stock Out)
     mov_type = payload.movement_type.strip()
-    if mov_type in ["Stock In", "Receipt", "Return"]:
+    if mov_type in ["Stock In", "Receipt", "Return", "Return Stock"]:
         material.current_stock = (material.current_stock or 0.0) + payload.quantity
     elif mov_type in ["Stock Out", "Issue", "Wastage"]:
         material.current_stock = max(0.0, (material.current_stock or 0.0) - payload.quantity)
         if mov_type == "Issue":
             material.reserved_stock = max(0.0, (material.reserved_stock or 0.0) - payload.quantity)
-    elif mov_type == "Adjustment":
+    elif mov_type in ["Adjustment", "Direct Adjustment"]:
         material.current_stock = payload.quantity
 
     db.add(movement)

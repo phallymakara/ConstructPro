@@ -71,6 +71,7 @@ class MaterialBase(BaseModel):
     minimum_stock: float = Field(0.0, ge=0)
     storage_location: Optional[str] = None
     notes: Optional[str] = None
+    image_url: Optional[str] = None
 
 class MaterialCreate(MaterialBase):
     pass
@@ -89,6 +90,7 @@ class MaterialUpdate(BaseModel):
     minimum_stock: Optional[float] = None
     storage_location: Optional[str] = None
     notes: Optional[str] = None
+    image_url: Optional[str] = None
 
 class MaterialOut(MaterialBase):
     id: int
@@ -307,6 +309,42 @@ class ProjectUpdate(BaseModel):
             return None
         return v
 
+class ProjectSubtaskSchema(BaseModel):
+    id: Optional[str] = None
+    title: str
+    description: Optional[str] = None
+    progress: Optional[float] = 0.0
+    completed: Optional[bool] = False
+    start_date: Optional[str] = None
+    est_end_date: Optional[str] = None
+
+class ProjectTaskSchema(BaseModel):
+    id: Optional[str] = None
+    name: str
+    description: Optional[str] = None
+    status: Optional[str] = "Todo"
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    est_end_date: Optional[str] = None
+    subtasks: Optional[List[ProjectSubtaskSchema]] = []
+
+class ProjectDocumentCreate(BaseModel):
+    name: str
+    document_type: Optional[str] = "Specification"
+    file_name: Optional[str] = None
+    file_url: Optional[str] = None
+    uploaded_by: Optional[str] = "Default"
+    uploaded_at: Optional[str] = None
+    is_default: Optional[bool] = False
+
+class ProjectDocumentOut(ProjectDocumentCreate):
+    id: int
+    project_id: int
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
 class ProjectOut(ProjectBase):
     id: int
     estimated_cost: float
@@ -317,6 +355,8 @@ class ProjectOut(ProjectBase):
     material_requirements: List[MaterialRequirementOut] = []
     payments: List[ProjectPaymentOut] = []
     worker_logs: List[ProjectWorkerLogOut] = []
+    tasks: List[ProjectTaskSchema] = []
+    documents: List[ProjectDocumentOut] = []
 
     class Config:
         from_attributes = True

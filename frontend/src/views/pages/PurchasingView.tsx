@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import {
   Plus,
   Search,
@@ -7,6 +8,8 @@ import {
   MoreHorizontal,
   CheckCircle2,
   Pencil,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import { usePurchasingController } from '../../controllers/usePurchasingController';
 import { Modal } from '../components/Modal';
@@ -14,6 +17,7 @@ import type { Supplier, Material, PurchaseOrder } from '../../models/types';
 import { api } from '../../controllers/apiClient';
 
 export const PurchasingView: React.FC = () => {
+  const navigate = useNavigate();
   const {
     rawSuppliers,
     orders,
@@ -48,6 +52,22 @@ export const PurchasingView: React.FC = () => {
 
   // Channel filter on main toolbar: 'All' | 'Local' | 'Overseas'
   const [channelFilter, setChannelFilter] = useState<'All' | 'Local' | 'Overseas'>('All');
+
+  // View mode: card vs table
+  const [viewMode, setViewMode] = useState<'card' | 'table'>(() => {
+    try {
+      return (localStorage.getItem('purchasing_view_mode') as 'card' | 'table') || 'card';
+    } catch {
+      return 'card';
+    }
+  });
+
+  const handleViewModeChange = (mode: 'card' | 'table') => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('purchasing_view_mode', mode);
+    } catch {}
+  };
 
   // Create / Edit Purchase Order Form State
   const [editingPO, setEditingPO] = useState<PurchaseOrder | null>(null);
@@ -230,6 +250,160 @@ export const PurchasingView: React.FC = () => {
     return channelFilter === 'Overseas' ? isOverseas : !isOverseas;
   });
 
+  const renderPOCard = (po: PurchaseOrder) => {
+    const isOverseas =
+      po.supplier?.supplier_type === 'Overseas' ||
+      (po.notes?.toLowerCase() || '').includes('oversea');
+
+    return (
+      <div
+        key={po.id}
+        className="erp-po-card"
+        onClick={() => navigate({ to: `/purchasing/${po.id}` })}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          borderRadius: 'var(--erp-radius-card, 8px)',
+          border: '1px solid var(--erp-border)',
+          backgroundColor: 'var(--erp-surface, #ffffff)',
+          padding: '16px',
+          boxShadow: 'none',
+          position: 'relative',
+          justifyContent: 'space-between',
+          zIndex: openMenuPOId === po.id ? 25 : 1,
+          gap: '12px',
+          cursor: 'pointer',
+        }}
+      >
+        {/* Top: Supplier Name & Vendor Type Tag, Action Menu */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+          <div style={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', gap: '5px' }}>
+            <div style={{ fontSize: '13.5px', fontWeight: 400, color: 'var(--erp-text-main)', lineHeight: 1.35 }}>
+              {po.supplier?.name || 'N/A'}
+            </div>
+            <span
+              style={{
+                fontSize: '12.5px',
+                fontWeight: 500,
+                color: isOverseas ? 'var(--erp-primary)' : 'var(--erp-text-muted)',
+              }}
+            >
+              {isOverseas ? 'Overseas' : 'Local'}
+            </span>
+          </div>
+
+          {/* Three-dot Action Menu */}
+          <div className="erp-dropdown-container">
+            <button
+              type="button"
+              className="erp-btn-icon"
+              onClick={e => {
+                e.stopPropagation();
+                setOpenMenuPOId(openMenuPOId === po.id ? null : po.id);
+              }}
+              title="Actions"
+              aria-label="Actions"
+            >
+              <MoreHorizontal size={16} />
+            </button>
+
+            {openMenuPOId === po.id && (
+              <div
+                className="erp-dropdown-menu"
+                style={{ right: 0, top: '100%', marginTop: '4px' }}
+                onClick={e => e.stopPropagation()}
+              >
+                {po.status === 'Ordered' && (
+                  <button
+                    type="button"
+                    className="erp-dropdown-item"
+                    onClick={() => {
+                      setOpenMenuPOId(null);
+                      handleOpenEditPO(po);
+                    }}
+                  >
+                    <Pencil size={13} />
+                    <span>Edit Order</span>
+                  </button>
+                )}
+
+                {po.status !== 'Received' ? (
+                  <button
+                    type="button"
+                    className="erp-dropdown-item"
+                    style={{ color: '#047857' }}
+                    disabled={actionLoading}
+                    onClick={() => {
+                      setOpenMenuPOId(null);
+                      receivePurchaseOrder(po.id);
+                    }}
+                  >
+                    <PackageCheck size={14} color="#047857" />
+                    <span>Receive Stock</span>
+                  </button>
+                ) : (
+                  <div
+                    className="erp-dropdown-item disabled"
+                    style={{ color: '#047857', opacity: 0.85 }}
+                  >
+                    <CheckCircle2 size={14} color="#047857" />
+                    <span>Received & Added</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Dates Row: Order Date & Expected Receive Date */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 0', borderTop: '1px solid var(--erp-border)', borderBottom: '1px solid var(--erp-border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13.5px' }}>
+            <span style={{ color: 'var(--erp-text-muted)', fontWeight: 400 }}>Order Date</span>
+            <span style={{ color: 'var(--erp-text-main)', fontWeight: 400 }}>
+              {new Date(po.order_date).toLocaleDateString()}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13.5px' }}>
+            <span style={{ color: 'var(--erp-text-muted)', fontWeight: 400 }}>Expected Receive</span>
+            <span style={{ color: 'var(--erp-text-main)', fontWeight: 400, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              {po.expected_delivery_date ? (
+                <>
+                  <Calendar size={13} color="var(--erp-text-muted)" />
+                  <span>{new Date(po.expected_delivery_date).toLocaleDateString()}</span>
+                </>
+              ) : (
+                '-'
+              )}
+            </span>
+          </div>
+        </div>
+
+        {/* Footer: Status */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: '2px', marginTop: 'auto' }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '3px 10px',
+              borderRadius: '9999px',
+              fontSize: '12px',
+              fontWeight: 600,
+              backgroundColor:
+                po.status === 'Received'
+                  ? '#10b981'
+                  : po.status === 'In Transit'
+                  ? '#0284c7'
+                  : '#f59e0b',
+              color: '#ffffff',
+            }}
+          >
+            {po.status}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="erp-content">
       {/* Action Bar */}
@@ -261,11 +435,60 @@ export const PurchasingView: React.FC = () => {
           </select>
         </div>
 
-        <div>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
+          {/* View Mode Toggle */}
+          <div style={{ display: 'inline-flex', borderRadius: '4px', border: '1px solid var(--erp-border)', overflow: 'hidden' }}>
+            <button
+              type="button"
+              style={{
+                height: '35px',
+                padding: '0 11px',
+                border: 'none',
+                backgroundColor: viewMode === 'card' ? 'var(--erp-primary)' : 'var(--erp-surface)',
+                color: viewMode === 'card' ? '#ffffff' : 'var(--erp-text-muted)',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                fontSize: '12.5px',
+                fontWeight: 500,
+                transition: 'all 0.15s ease',
+              }}
+              onClick={() => handleViewModeChange('card')}
+              title="Cards View"
+            >
+              <LayoutGrid size={14} />
+              <span>Cards</span>
+            </button>
+            <button
+              type="button"
+              style={{
+                height: '35px',
+                padding: '0 11px',
+                border: 'none',
+                borderLeft: '1px solid var(--erp-border)',
+                backgroundColor: viewMode === 'table' ? 'var(--erp-primary)' : 'var(--erp-surface)',
+                color: viewMode === 'table' ? '#ffffff' : 'var(--erp-text-muted)',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                fontSize: '12.5px',
+                fontWeight: 500,
+                transition: 'all 0.15s ease',
+              }}
+              onClick={() => handleViewModeChange('table')}
+              title="Table View"
+            >
+              <List size={14} />
+              <span>Table</span>
+            </button>
+          </div>
+
           <button
             className="erp-btn erp-btn-primary"
             onClick={handleOpenCreatePO}
-            style={{ gap: '6px' }}
+            style={{ gap: '6px', height: '35px' }}
           >
             <Plus size={14} />
             <span>Purchase Order</span>
@@ -279,43 +502,69 @@ export const PurchasingView: React.FC = () => {
         </div>
       )}
 
-      {/* Purchase Orders Table */}
-      <div className="erp-table-container">
-        <table className="erp-table">
-          <thead>
-            <tr>
-              <th>PO Number</th>
-              <th>Supplier</th>
-              <th>Channel</th>
-              <th>Order Date</th>
-              <th>Expected Arrival</th>
-              <th>Total Value</th>
-              <th>Status</th>
-              <th style={{ width: '60px', textAlign: 'right' }}>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
+      {/* Main View Area */}
+      {isLoading ? (
+        <div className="erp-table-container" style={{ padding: '36px 20px', textAlign: 'center', color: 'var(--erp-text-muted)' }}>
+          Loading purchase orders...
+        </div>
+      ) : displayedOrders.length === 0 ? (
+        <div className="erp-table-container" style={{ padding: '36px 20px', textAlign: 'center', color: 'var(--erp-text-muted)' }}>
+          No {channelFilter !== 'All' ? channelFilter.toLowerCase() : ''} purchase orders found.
+        </div>
+      ) : viewMode === 'card' ? (
+        /* Card View */
+        <div
+          className="erp-purchasing-cards-container"
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            paddingRight: '4px',
+            paddingBottom: '20px',
+          }}
+        >
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))',
+              gap: '12px',
+              paddingTop: '2px',
+              paddingBottom: '12px',
+            }}
+          >
+            {displayedOrders.map(po => renderPOCard(po))}
+          </div>
+        </div>
+      ) : (
+        /* Purchase Orders Table */
+        <div className="erp-table-container">
+          <table className="erp-table">
+            <thead>
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', padding: '24px' }}>
-                  Loading purchase orders...
-                </td>
+                <th>PO Number</th>
+                <th>Supplier</th>
+                <th>Channel</th>
+                <th>Order Date</th>
+                <th>Expected Arrival</th>
+                <th>Total Value</th>
+                <th>Status</th>
+                <th style={{ width: '60px', textAlign: 'right' }}>Action</th>
               </tr>
-            ) : displayedOrders.length === 0 ? (
-              <tr>
-                <td colSpan={8} style={{ textAlign: 'center', padding: '24px', color: 'var(--erp-text-muted)' }}>
-                  No {channelFilter !== 'All' ? channelFilter.toLowerCase() : ''} purchase orders found.
-                </td>
-              </tr>
-            ) : (
-              displayedOrders.map(po => {
+            </thead>
+            <tbody>
+              {displayedOrders.map(po => {
                 const isOverseas =
                   po.supplier?.supplier_type === 'Overseas' ||
                   (po.notes?.toLowerCase() || '').includes('oversea');
                 return (
-                  <tr key={po.id}>
+                  <tr
+                    key={po.id}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => navigate({ to: `/purchasing/${po.id}` })}
+                  >
                     <td style={{ fontSize: '15px', color: 'var(--erp-text-main)' }}>{po.po_number}</td>
-                    <td style={{ fontSize: '15px' }}>{po.supplier?.name || 'N/A'}</td>
+                    <td style={{ fontSize: '14px', fontWeight: 400 }}>{po.supplier?.name || 'N/A'}</td>
                     <td>
                       {isOverseas ? (
                         <span style={{ color: 'var(--erp-primary)', fontWeight: 500 }}>Overseas</span>
@@ -406,11 +655,11 @@ export const PurchasingView: React.FC = () => {
                     </td>
                   </tr>
                 );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Modal: Create or Edit Purchase Order */}
       <Modal

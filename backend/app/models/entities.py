@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 from sqlalchemy import (
-    Column, Integer, String, Float, Text, DateTime, ForeignKey, Enum as SQLEnum
+    Column, Integer, String, Float, Text, DateTime, Boolean, ForeignKey, Enum as SQLEnum
 )
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -95,6 +95,7 @@ class Material(Base):
     minimum_stock = Column(Float, default=0.0)
     storage_location = Column(String(100), nullable=True)
     notes = Column(Text, nullable=True)
+    image_url = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     category_rel = relationship("ProductCategory", back_populates="materials")
@@ -148,6 +149,8 @@ class Project(Base):
     material_requirements = relationship("ProjectMaterialRequirement", back_populates="project", cascade="all, delete-orphan")
     payments = relationship("ProjectPayment", back_populates="project", cascade="all, delete-orphan")
     worker_logs = relationship("ProjectWorkerLog", back_populates="project", cascade="all, delete-orphan")
+    tasks = relationship("ProjectTask", back_populates="project", cascade="all, delete-orphan", order_by="ProjectTask.sort_order")
+    documents = relationship("ProjectDocument", back_populates="project", cascade="all, delete-orphan")
 
 class ProjectPayment(Base):
     __tablename__ = "project_payments"
@@ -175,6 +178,57 @@ class ProjectWorkerLog(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     project = relationship("Project", back_populates="worker_logs")
+
+class ProjectTask(Base):
+    __tablename__ = "project_tasks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(String(100), nullable=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    status = Column(String(50), default="Todo")
+    start_date = Column(String(50), nullable=True)
+    end_date = Column(String(50), nullable=True)
+    est_end_date = Column(String(50), nullable=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship("Project", back_populates="tasks")
+    subtasks = relationship("ProjectSubtask", back_populates="task", cascade="all, delete-orphan", order_by="ProjectSubtask.sort_order")
+
+class ProjectSubtask(Base):
+    __tablename__ = "project_subtasks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    subtask_id = Column(String(100), nullable=True, index=True)
+    task_id = Column(Integer, ForeignKey("project_tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    progress = Column(Float, default=0.0)
+    completed = Column(Boolean, default=False)
+    start_date = Column(String(50), nullable=True)
+    est_end_date = Column(String(50), nullable=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    task = relationship("ProjectTask", back_populates="subtasks")
+
+class ProjectDocument(Base):
+    __tablename__ = "project_documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    document_type = Column(String(100), default="Specification")
+    file_name = Column(String(255), nullable=True)
+    file_url = Column(String(500), nullable=True)
+    uploaded_by = Column(String(100), default="Default")
+    uploaded_at = Column(String(100), default="")
+    is_default = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship("Project", back_populates="documents")
 
 class ProjectItem(Base):
     __tablename__ = "project_items"

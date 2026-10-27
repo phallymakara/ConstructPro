@@ -161,7 +161,7 @@ export const QuotationsView: React.FC = () => {
             ) : (
               quotations.map(quote => (
                 <tr key={quote.id}>
-                  <td style={{ fontWeight: 600 }}>{quote.quotation_number}</td>
+                  <td style={{ fontWeight: 400 }}>{quote.quotation_number}</td>
                   <td>{quote.customer?.name || 'N/A'}</td>
                   <td>${quote.material_cost.toLocaleString()}</td>
                   <td>${(quote.labor_cost + quote.installation_cost).toLocaleString()}</td>

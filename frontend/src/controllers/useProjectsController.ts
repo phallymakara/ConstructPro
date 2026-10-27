@@ -36,13 +36,20 @@ export function useProjectsController() {
         api.get<Customer[]>('/customers/'),
         api.get<Supplier[]>('/purchasing/suppliers'),
       ]);
-      // PM Projects Page receives projects created directly for operations or Closed Won from Sales
+      // PM Projects Page receives projects created directly for operations or In Progress / Closed Won from Sales
       const pmProjects = projData
         .filter(p => (p.source || 'project') !== 'sales' || p.source === 'sales_won' || p.status === 'Closed Won' || p.status === 'Accepted' || p.status === 'Completed' || p.status === 'Incoming Project' || p.status === 'In Progress' || p.status === 'Cancelled')
-        .map(p => ({
-          ...p,
-          status: calculateDynamicProjectStatus(p),
-        }));
+        .map(p => {
+          let opStatus = p.status;
+          // When a project originates from sales and has sales status 'In Progress' or 'Closed Won', it enters Projects as 'Incoming Project'
+          if ((p.source === 'sales' && p.status === 'In Progress') || p.status === 'Closed Won') {
+            opStatus = 'Incoming Project';
+          }
+          return {
+            ...p,
+            status: calculateDynamicProjectStatus({ ...p, status: opStatus }),
+          };
+        });
       setProjects(pmProjects);
       setCustomers(custData);
       setSuppliers(supData);

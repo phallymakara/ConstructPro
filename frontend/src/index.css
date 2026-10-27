@@ -396,14 +396,15 @@ body {
 .erp-breadcrumb {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 14.5px;
+  gap: 8px;
+  font-size: 16px;
   color: var(--erp-text-muted);
 }
 
 .erp-breadcrumb-active {
   color: var(--erp-text-main);
   font-weight: 600;
+  font-size: 16px;
 }
 
 .erp-header-right {
@@ -782,6 +783,11 @@ textarea::placeholder {
   border-color: var(--erp-border-focus);
 }
 
+.erp-select option {
+  color: var(--erp-text-main);
+  background-color: #ffffff;
+}
+
 textarea.erp-input {
   height: auto;
   min-height: 72px;
@@ -837,6 +843,80 @@ textarea.erp-input {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+/* Scrollable Card View Container */
+.erp-materials-cards-container,
+.erp-purchasing-cards-container,
+.erp-projects-cards-container {
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.erp-materials-cards-container::-webkit-scrollbar,
+.erp-purchasing-cards-container::-webkit-scrollbar,
+.erp-projects-cards-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.erp-materials-cards-container::-webkit-scrollbar-track,
+.erp-purchasing-cards-container::-webkit-scrollbar-track,
+.erp-projects-cards-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.erp-materials-cards-container::-webkit-scrollbar-thumb,
+.erp-purchasing-cards-container::-webkit-scrollbar-thumb,
+.erp-projects-cards-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: var(--erp-radius-pill);
+  transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.erp-materials-cards-container::-webkit-scrollbar-thumb:hover,
+.erp-purchasing-cards-container::-webkit-scrollbar-thumb:hover,
+.erp-projects-cards-container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.erp-po-card {
+  transition: border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: none !important;
+}
+
+.erp-po-card:hover {
+  border-color: #cbd5e1;
+}
+
+/* 4-Column Cards Grid for Sales and Projects */
+.erp-cards-grid-4col {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding-top: 2px;
+  padding-bottom: 12px;
+}
+
+@media (max-width: 1380px) {
+  .erp-cards-grid-4col {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1024px) {
+  .erp-cards-grid-4col {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .erp-cards-grid-4col {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* High-Density Data Tables */
@@ -1155,12 +1235,21 @@ textarea.erp-input {
   animation: erpModalFadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+.erp-modal form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .erp-modal-header {
   padding: 14px 18px;
   border-bottom: 1px solid var(--erp-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
 }
 
 .erp-modal-close-btn {
@@ -1216,9 +1305,23 @@ textarea.erp-input {
 .erp-modal-body {
   padding: 18px;
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.erp-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.erp-modal-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: var(--erp-radius-pill);
 }
 
 .erp-modal-footer {
@@ -1229,6 +1332,7 @@ textarea.erp-input {
   justify-content: flex-end;
   gap: 8px;
   background-color: var(--erp-bg);
+  flex-shrink: 0;
 }
 
 /* Form Groups and Inline Error handling */
@@ -1501,6 +1605,40 @@ textarea.erp-input {
 
 @media (max-width: 640px) {
   .erp-kpi-grid-4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 3-Column Balanced KPI Grid */
+.erp-kpi-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .erp-kpi-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .erp-kpi-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 2-Column KPI Grid for Status Overview Cards */
+.erp-kpi-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .erp-kpi-grid-2 {
     grid-template-columns: 1fr;
   }
 }
