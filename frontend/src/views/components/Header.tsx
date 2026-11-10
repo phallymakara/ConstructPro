@@ -18,6 +18,9 @@ const getBreadcrumbTitle = (path: string): string => {
   if (path.startsWith('/projects')) return 'Projects Management';
   if (path.startsWith('/warehouse') || path.startsWith('/inventory') || path.startsWith('/materials')) return 'Warehouse';
   if (path.startsWith('/purchasing')) return 'Suppliers & Purchasing';
+  if (path.startsWith('/settings/payment-terms')) return 'Payment Terms';
+  if (path.startsWith('/settings/company-profile')) return 'Company Profile';
+  if (path.startsWith('/settings')) return 'Settings';
   return 'Dashboard';
 };
 

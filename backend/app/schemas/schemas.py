@@ -576,3 +576,59 @@ class DelayedProjectReportItem(BaseModel):
     deadline_date: datetime
     days_overdue: int
     assigned_manager: Optional[str] = None
+
+
+# --- Settings Schemas ---
+class PaymentTermMilestone(BaseModel):
+    milestone: str
+    trigger: str
+    percent: float
+    due: str
+
+class PaymentTermBase(BaseModel):
+    name_en: str
+    name_kh: Optional[str] = None
+    customer_count: int = 0
+    milestones: List[PaymentTermMilestone] = []
+    is_default: bool = False
+
+class PaymentTermCreate(PaymentTermBase):
+    pass
+
+class PaymentTermUpdate(BaseModel):
+    name_en: Optional[str] = None
+    name_kh: Optional[str] = None
+    customer_count: Optional[int] = None
+    milestones: Optional[List[PaymentTermMilestone]] = None
+    is_default: Optional[bool] = None
+
+class PaymentTermOut(PaymentTermBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class CompanyProfileSchema(BaseModel):
+    company_name_kh: str = "ដេប៉ូ វឌ្ឍនា កញ្ចក់ និងអាលុយមីញ៉ូម"
+    company_name_en: str = "WATTANA GLASS & ALUMINIUM"
+    address: str = "#31-33, National Road 1, Chbar Ampov, Phnom Penh"
+    phone: str = "0XX XXX XXX"
+    telegram: str = "@wattana"
+    vat_tin: str = "K00X-XXXXXXXXX"
+    bank_name: str = "ABA Bank"
+    account_name: str = "WATTANA GLASS & ALUMINIUM"
+    account_number: str = "000 000 000"
+    doc_numbering_quotation: str = "QT-YYMM-###"
+    doc_numbering_sales_order: str = "SO-YYMM-###"
+    doc_numbering_delivery_note: str = "DN-YYMM-###"
+    doc_numbering_invoice: str = "INV-YYMM-###"
+    doc_numbering_receipt: str = "RC-YYMM-###"
+    payment_rating_rules: Optional[str] = None
+
+class CompanyProfileOut(CompanyProfileSchema):
+    id: int
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

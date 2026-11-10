@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
@@ -8,8 +8,17 @@ from app.schemas.schemas import QuotationCreate, QuotationUpdate, QuotationOut
 router = APIRouter()
 
 @router.get("/", response_model=List[QuotationOut])
-def get_quotations(db: Session = Depends(get_db)):
-    return db.query(Quotation).order_by(Quotation.created_at.desc()).all()
+def get_quotations(
+    project_id: Optional[int] = None,
+    customer_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(Quotation)
+    if project_id is not None:
+        query = query.filter(Quotation.project_id == project_id)
+    if customer_id is not None:
+        query = query.filter(Quotation.customer_id == customer_id)
+    return query.order_by(Quotation.created_at.desc()).all()
 
 @router.post("/", response_model=QuotationOut, status_code=status.HTTP_201_CREATED)
 def create_quotation(payload: QuotationCreate, db: Session = Depends(get_db)):
@@ -82,34 +91,50 @@ def update_quotation(quotation_id: int, payload: QuotationUpdate, db: Session = 
     direct_cost = quote.material_cost + quote.transport_cost
     quote.expected_profit = round(max(0.0, quote.total_amount - direct_cost), 2)
 
+    # If quotation status is set to Approved, synchronize project status to Closed Won
+    if quote.status == QuotationStatus.APPROVED.value and quote.project_id:
+        proj = db.query(Project).filter(Project.id == quote.project_id).first()
+        if proj:
+            proj.status = "Closed Won"
+            proj.source = "sales_won"
+            proj.contract_amount = quote.total_amount
+            proj.service_selling = quote.total_amount
+
     db.commit()
     db.refresh(quote)
     return quote
 
-@router.post("/{quotation_id}/convert-to-project", response_model=QuotationOut)
-def convert_quotation_to_project(quotation_id: int, db: Session = Depends(get_db)):
+@router.post("/{quotation_id}/approve", response_model=QuotationOut)
+def approve_quotation(quotation_id: int, db: Session = Depends(get_db)):
     quote = db.query(Quotation).filter(Quotation.id == quotation_id).first()
     if not quote:
         raise HTTPException(status_code=404, detail="Quotation not found")
 
     quote.status = QuotationStatus.APPROVED.value
 
-    # If already linked to a project, set project status to Approved
     if quote.project_id:
         proj = db.query(Project).filter(Project.id == quote.project_id).first()
         if proj:
-            proj.status = ProjectStatus.APPROVED.value
+            proj.status = "Closed Won"
+            proj.source = "sales_won"
             proj.contract_amount = quote.total_amount
+            proj.service_selling = quote.total_amount
+            if not proj.estimated_cost:
+                proj.estimated_cost = quote.material_cost + quote.labor_cost
     else:
         # Create a new active project from this approved quotation
+        cust_name = quote.customer.name if quote.customer else "Client"
+        cust_addr = quote.customer.address if quote.customer and quote.customer.address else "Site Location"
         new_proj_num = f"PRJ-{quote.quotation_number.replace('QT-', '')}"
         project = Project(
             project_number=new_proj_num,
-            project_name=f"Project for {quote.customer.name}",
+            project_name=f"Project for {cust_name}",
             customer_id=quote.customer_id,
-            location=quote.customer.address or "Site Location",
-            status=ProjectStatus.APPROVED.value,
+            location=cust_addr,
+            status="Closed Won",
+            source="sales_won",
             contract_amount=quote.total_amount,
+            service_selling=quote.total_amount,
             estimated_cost=quote.material_cost + quote.labor_cost,
             notes=f"Converted from approved quotation {quote.quotation_number}"
         )
@@ -120,6 +145,10 @@ def convert_quotation_to_project(quotation_id: int, db: Session = Depends(get_db
     db.commit()
     db.refresh(quote)
     return quote
+
+@router.post("/{quotation_id}/convert-to-project", response_model=QuotationOut)
+def convert_quotation_to_project(quotation_id: int, db: Session = Depends(get_db)):
+    return approve_quotation(quotation_id=quotation_id, db=db)
 
 @router.delete("/{quotation_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_quotation(quotation_id: int, db: Session = Depends(get_db)):

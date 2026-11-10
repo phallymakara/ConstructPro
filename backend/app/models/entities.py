@@ -350,3 +350,35 @@ class PurchaseOrderItem(Base):
     purchase_order = relationship("PurchaseOrder", back_populates="items")
     material = relationship("Material")
 
+class CompanyProfile(Base):
+    __tablename__ = "company_profile"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_name_kh = Column(String(255), default="ដេប៉ូ វឌ្ឍនា កញ្ចក់ និងអាលុយមីញ៉ូម")
+    company_name_en = Column(String(255), default="WATTANA GLASS & ALUMINIUM")
+    address = Column(Text, default="#31-33, National Road 1, Chbar Ampov, Phnom Penh")
+    phone = Column(String(100), default="0XX XXX XXX")
+    telegram = Column(String(100), default="@wattana")
+    vat_tin = Column(String(100), default="K00X-XXXXXXXXX")
+    bank_name = Column(String(100), default="ABA Bank")
+    account_name = Column(String(100), default="WATTANA GLASS & ALUMINIUM")
+    account_number = Column(String(100), default="000 000 000")
+    doc_numbering_quotation = Column(String(50), default="QT-YYMM-###")
+    doc_numbering_sales_order = Column(String(50), default="SO-YYMM-###")
+    doc_numbering_delivery_note = Column(String(50), default="DN-YYMM-###")
+    doc_numbering_invoice = Column(String(50), default="INV-YYMM-###")
+    doc_numbering_receipt = Column(String(50), default="RC-YYMM-###")
+    payment_rating_rules = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class PaymentTerm(Base):
+    __tablename__ = "payment_terms"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name_en = Column(String(255), nullable=False)
+    name_kh = Column(String(255), nullable=True)
+    customer_count = Column(Integer, default=0)
+    milestones = Column(Text, nullable=False)  # JSON-encoded array of {milestone, trigger, percent, due}
+    is_default = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+

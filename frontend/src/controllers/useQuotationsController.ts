@@ -51,18 +51,36 @@ export function useQuotationsController() {
     }
   };
 
-  const convertToProject = async (quotationId: number) => {
+  const updateQuotation = async (quotationId: number, data: Partial<QuotationFormData>) => {
     setActionLoading(true);
     try {
-      const updated = await api.post<Quotation>(`/quotations/${quotationId}/convert-to-project`, {});
+      const updated = await api.put<Quotation>(`/quotations/${quotationId}`, data);
       setQuotations(prev => prev.map(q => q.id === quotationId ? updated : q));
-      return true;
+      return updated;
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to convert quotation to active project');
-      return false;
+      setErrorMessage(err.message || 'Failed to update quotation');
+      return null;
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const approveQuotation = async (quotationId: number) => {
+    setActionLoading(true);
+    try {
+      const updated = await api.post<Quotation>(`/quotations/${quotationId}/approve`, {});
+      setQuotations(prev => prev.map(q => q.id === quotationId ? updated : q));
+      return updated;
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to approve quotation');
+      return null;
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const convertToProject = async (quotationId: number) => {
+    return approveQuotation(quotationId);
   };
 
   const filteredQuotations = quotations.filter(q => {
@@ -88,6 +106,8 @@ export function useQuotationsController() {
     setSearchQuery,
     setIsCreateModalOpen,
     createQuotation,
+    updateQuotation,
+    approveQuotation,
     convertToProject,
     refresh: fetchQuotations,
   };

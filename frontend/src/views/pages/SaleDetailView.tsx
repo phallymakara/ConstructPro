@@ -10,11 +10,18 @@ import {
   Eye,
   Trash2,
   Lock,
+  Printer,
+  CheckCircle2,
+  Calculator,
+  Pencil,
+  ExternalLink,
 } from 'lucide-react';
 import { api } from '../../controllers/apiClient';
-import type { Project, Customer, ProjectStatus } from '../../models/types';
+import type { Project, Customer, ProjectStatus, Quotation, QuotationFormData, PaymentTerm } from '../../models/types';
 import { calculateProjectDuration } from '../../controllers/useSalesController';
 import { Modal } from '../components/Modal';
+import { StatusBadge } from '../components/StatusBadge';
+import { exportQuotationToPDF } from '../../utils/exportTemplate';
 
 interface ProjectDoc {
   id: number;
@@ -67,8 +74,196 @@ export const SaleDetailView: React.FC = () => {
   const [pageError, setPageError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  // Two tabs: Customer Info & Document
-  const [activeTab, setActiveTab] = useState<'customer_info' | 'document'>('customer_info');
+  // Three tabs: Customer Info, Quotation & Document
+  const [activeTab, setActiveTab] = useState<'customer_info' | 'quotation' | 'document'>('customer_info');
+
+  // Quotation state
+  const [quotation, setQuotation] = useState<Quotation | null>(null);
+  const [isLoadingQuotation, setIsLoadingQuotation] = useState<boolean>(false);
+  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState<boolean>(false);
+  const [isApproveModalOpen, setIsApproveModalOpen] = useState<boolean>(false);
+  const [isReleasingQuote, setIsReleasingQuote] = useState<boolean>(false);
+  const [quoteForm, setQuoteForm] = useState<QuotationFormData>({
+    quotation_number: '',
+    customer_id: 0,
+    project_id: undefined,
+    status: 'Draft',
+    material_cost: 0,
+    labor_cost: 0,
+    transport_cost: 0,
+    installation_cost: 0,
+    discount_amount: 0,
+    tax_percent: 0,
+    valid_until: '',
+    notes: '',
+  });
+  const [quoteErrors, setQuoteErrors] = useState<Record<string, string>>({});
+  const [availablePaymentTerms, setAvailablePaymentTerms] = useState<PaymentTerm[]>([]);
+
+  useEffect(() => {
+    api.get<PaymentTerm[]>('/settings/payment-terms')
+      .then(res => setAvailablePaymentTerms(Array.isArray(res) ? res : []))
+      .catch(() => {});
+  }, []);
+
+  const loadQuotation = useCallback(async () => {
+    if (!projectId) return;
+    setIsLoadingQuotation(true);
+    try {
+      const res = await api.get<Quotation[]>(`/quotations/?project_id=${projectId}`);
+      if (Array.isArray(res) && res.length > 0) {
+        setQuotation(res[0]);
+      } else {
+        setQuotation(null);
+      }
+    } catch {
+      // Non-blocking fallback
+    } finally {
+      setIsLoadingQuotation(false);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    loadQuotation();
+  }, [loadQuotation]);
+
+  const handleOpenCreateQuote = () => {
+    const rawNum = project?.project_number ? project.project_number.replace(/^PRJ-/, '') : String(projectId);
+    const defaultQuoteNum = `QT-${rawNum}`;
+    const defaultValidDate = new Date();
+    defaultValidDate.setDate(defaultValidDate.getDate() + 30);
+    const validUntilStr = defaultValidDate.toISOString().split('T')[0];
+
+    const matCost = Number(project?.material_cost) || 0;
+    const labCost = Number(project?.labor_cost) || 0;
+    const otherCost = Number(project?.other_expenses) || 0;
+
+    setQuoteForm({
+      quotation_number: defaultQuoteNum,
+      customer_id: formData.customer_id || (project?.customer_id ?? 0),
+      project_id: projectId,
+      status: 'Draft',
+      material_cost: matCost,
+      labor_cost: labCost,
+      transport_cost: otherCost,
+      installation_cost: 0,
+      discount_amount: 0,
+      tax_percent: 0,
+      valid_until: validUntilStr,
+      notes: 'Standard terms: 50% deposit upon confirmation, 50% upon delivery/handover. Warranty 2 years for materials and hardware.',
+    });
+    setQuoteErrors({});
+    setIsQuoteModalOpen(true);
+  };
+
+  const handleOpenEditQuote = () => {
+    if (!quotation) return;
+    setQuoteForm({
+      quotation_number: quotation.quotation_number,
+      customer_id: quotation.customer_id,
+      project_id: quotation.project_id,
+      status: quotation.status,
+      material_cost: quotation.material_cost || 0,
+      labor_cost: quotation.labor_cost || 0,
+      transport_cost: quotation.transport_cost || 0,
+      installation_cost: quotation.installation_cost || 0,
+      discount_amount: quotation.discount_amount || 0,
+      tax_percent: quotation.tax_percent || 0,
+      valid_until: quotation.valid_until ? formatDateForInput(quotation.valid_until) : '',
+      notes: quotation.notes || '',
+    });
+    setQuoteErrors({});
+    setIsQuoteModalOpen(true);
+  };
+
+  const handleQuoteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const errs: Record<string, string> = {};
+    if (!quoteForm.quotation_number.trim()) errs.quotation_number = 'Quotation number is required.';
+    const custId = Number(quoteForm.customer_id) || formData.customer_id || (project?.customer_id ?? 0);
+    if (!custId) errs.customer_id = 'A valid customer must be selected on the project.';
+
+    if (Object.keys(errs).length > 0) {
+      setQuoteErrors(errs);
+      return;
+    }
+
+    try {
+      const payload = {
+        quotation_number: quoteForm.quotation_number.trim(),
+        customer_id: custId,
+        project_id: projectId,
+        status: quoteForm.status || 'Draft',
+        material_cost: Number(quoteForm.material_cost) || 0,
+        labor_cost: Number(quoteForm.labor_cost) || 0,
+        transport_cost: Number(quoteForm.transport_cost) || 0,
+        installation_cost: Number(quoteForm.installation_cost) || 0,
+        discount_amount: Number(quoteForm.discount_amount) || 0,
+        tax_percent: Number(quoteForm.tax_percent) || 0,
+        valid_until: quoteForm.valid_until ? new Date(quoteForm.valid_until).toISOString() : null,
+        notes: quoteForm.notes || '',
+      };
+
+      let saved: Quotation;
+      if (quotation && quotation.id) {
+        saved = await api.put<Quotation>(`/quotations/${quotation.id}`, payload);
+      } else {
+        saved = await api.post<Quotation>('/quotations/', payload);
+      }
+      setQuotation(saved);
+      setIsQuoteModalOpen(false);
+    } catch (err: any) {
+      setQuoteErrors({ form: err.message || 'Failed to save quotation.' });
+    }
+  };
+
+  const handleReleaseAndPrintPDF = async () => {
+    if (!quotation) return;
+    setIsReleasingQuote(true);
+    try {
+      const custName =
+        customers.find(c => c.id === formData.customer_id)?.name ||
+        project?.customer?.name ||
+        formData.customer_name ||
+        'Client';
+
+      if (quotation.status === 'Draft') {
+        const updated = await api.put<Quotation>(`/quotations/${quotation.id}`, { status: 'Sent' });
+        setQuotation(updated);
+        exportQuotationToPDF(updated, custName);
+      } else {
+        exportQuotationToPDF(quotation, custName);
+      }
+    } catch (err: any) {
+      setPageError(err.message || 'Failed to release quotation');
+    } finally {
+      setIsReleasingQuote(false);
+    }
+  };
+
+  const handleApproveQuotation = async () => {
+    if (!quotation) return;
+    try {
+      const approved = await api.post<Quotation>(`/quotations/${quotation.id}/approve`, {});
+      setQuotation(approved);
+      setFormData(prev => ({
+        ...prev,
+        status: 'Closed Won',
+      }));
+      if (project) {
+        setProject({
+          ...project,
+          status: 'Closed Won',
+          contract_amount: approved.total_amount,
+          service_selling: approved.total_amount,
+          source: 'sales_won',
+        });
+      }
+      setIsApproveModalOpen(false);
+    } catch (err: any) {
+      setPageError(err.message || 'Failed to approve quotation.');
+    }
+  };
 
   // Document management state
   const [projectDocuments, setProjectDocuments] = useState<ProjectDoc[]>([]);
@@ -478,6 +673,38 @@ export const SaleDetailView: React.FC = () => {
 
                 <button
                   type="button"
+                  className={`erp-underline-tab ${activeTab === 'quotation' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('quotation')}
+                  style={{
+                    height: '48px',
+                    padding: '0 10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '13.5px',
+                  }}
+                >
+                  <Calculator size={14} />
+                  <span>Quotation</span>
+                  {quotation && (
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        padding: '1px 6px',
+                        borderRadius: '9999px',
+                        backgroundColor: activeTab === 'quotation' ? 'var(--erp-primary)' : 'var(--erp-surface-hover)',
+                        color: activeTab === 'quotation' ? '#ffffff' : 'var(--erp-text-muted)',
+                        border: '1px solid var(--erp-border)',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {quotation.status}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
                   className={`erp-underline-tab ${activeTab === 'document' ? 'active' : ''}`}
                   onClick={() => setActiveTab('document')}
                   style={{
@@ -522,6 +749,58 @@ export const SaleDetailView: React.FC = () => {
                   <Save size={14} />
                   <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
                 </button>
+              ) : activeTab === 'quotation' ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {quotation ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleReleaseAndPrintPDF}
+                        disabled={isReleasingQuote}
+                        className="erp-btn erp-btn-secondary erp-btn-sm"
+                        style={{ height: '32px', gap: '6px' }}
+                        title="Print or export PDF and mark as Sent"
+                      >
+                        <Printer size={14} />
+                        <span>{quotation.status === 'Draft' ? 'Release & Print PDF' : 'Print PDF'}</span>
+                      </button>
+
+                      {quotation.status !== 'Approved' && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={handleOpenEditQuote}
+                            className="erp-btn erp-btn-secondary erp-btn-sm"
+                            style={{ height: '32px', gap: '6px' }}
+                          >
+                            <Pencil size={14} />
+                            <span>Edit Quotation</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setIsApproveModalOpen(true)}
+                            className="erp-btn erp-btn-primary erp-btn-sm"
+                            style={{ height: '32px', gap: '6px' }}
+                          >
+                            <CheckCircle2 size={14} />
+                            <span>Approve Quotation</span>
+                          </button>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleOpenCreateQuote}
+                      className="erp-btn erp-btn-primary erp-btn-sm"
+                      style={{ height: '32px', gap: '6px' }}
+                    >
+                      <Plus size={14} />
+                      <span>Create Quotation</span>
+                    </button>
+                  )}
+                </div>
               ) : (
                 <button
                   type="button"
@@ -999,7 +1278,224 @@ export const SaleDetailView: React.FC = () => {
             </div>
           )}
 
-          {/* TAB 2: DOCUMENT */}
+          {/* TAB 2: QUOTATION */}
+          {activeTab === 'quotation' && (
+            <div
+              className="erp-tab-content"
+              style={{
+                padding: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                flex: 1,
+                minHeight: 0,
+                overflowY: 'auto',
+                gap: '20px',
+              }}
+            >
+              {isLoadingQuotation ? (
+                <div style={{ padding: '60px 16px', textAlign: 'center', color: 'var(--erp-text-muted)', fontSize: '13px' }}>
+                  Loading quotation information...
+                </div>
+              ) : !quotation ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '80px 20px',
+                    textAlign: 'center',
+                    flex: 1,
+                  }}
+                >
+                  <Calculator size={28} style={{ color: 'var(--erp-text-muted)', marginBottom: '12px' }} />
+                  <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--erp-text-main)', marginBottom: '16px' }}>
+                    No Official Quotation Released Yet
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleOpenCreateQuote}
+                    className="erp-btn erp-btn-primary erp-btn-sm"
+                    style={{ height: '34px', padding: '0 16px', gap: '6px' }}
+                  >
+                    <Plus size={14} />
+                    <span>Create Quotation</span>
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {/* Top Bar with Number, Status, Dates */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '12px',
+                      paddingBottom: '16px',
+                      borderBottom: '1px solid var(--erp-border)',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '17px', fontWeight: 700, color: 'var(--erp-text-main)' }}>
+                          {quotation.quotation_number}
+                        </span>
+                        <StatusBadge status={quotation.status} />
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--erp-text-muted)', marginTop: '4px', display: 'flex', gap: '14px' }}>
+                        <span>Created: {new Date(quotation.created_at).toLocaleDateString()}</span>
+                        {quotation.valid_until && (
+                          <span>Valid Until: {new Date(quotation.valid_until).toLocaleDateString()}</span>
+                        )}
+                        <span>Customer: {customers.find(c => c.id === quotation.customer_id)?.name || formData.customer_name || 'Client'}</span>
+                      </div>
+                    </div>
+
+                    {quotation.status === 'Approved' && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          fontSize: '12.5px',
+                          color: '#16a34a',
+                          fontWeight: 600,
+                        }}
+                      >
+                        <CheckCircle2 size={16} />
+                        <span>Quotation Approved & Deal Won</span>
+                        <button
+                          type="button"
+                          onClick={() => navigate({ to: `/projects/${projectId}` })}
+                          className="erp-btn erp-btn-secondary erp-btn-sm"
+                          style={{ height: '28px', fontSize: '12px', gap: '4px', marginLeft: '6px' }}
+                        >
+                          <span>Go to Projects Workspace</span>
+                          <ExternalLink size={12} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Cost Breakdown Table */}
+                  <div>
+                    <div style={{ marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--erp-text-main)' }}>
+                        Cost Breakdown & Pricing Structure
+                      </span>
+                      <span style={{ fontSize: '12px', color: 'var(--erp-text-muted)' }}>
+                        Amounts in USD ($)
+                      </span>
+                    </div>
+
+                    <table className="erp-table" style={{ width: '100%' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: '60%' }}>Cost Component</th>
+                          <th style={{ width: '40%', textAlign: 'right' }}>Amount ($)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>Direct Material Cost</td>
+                          <td style={{ textAlign: 'right', fontWeight: 500 }}>
+                            ${(quotation.material_cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>Labor & Workshop Assembly Cost</td>
+                          <td style={{ textAlign: 'right', fontWeight: 500 }}>
+                            ${(quotation.labor_cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>Transportation & Delivery Logistics</td>
+                          <td style={{ textAlign: 'right', fontWeight: 500 }}>
+                            ${(quotation.transport_cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>Site Installation</td>
+                          <td style={{ textAlign: 'right', fontWeight: 500 }}>
+                            ${(quotation.installation_cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                        <tr style={{ borderTop: '2px solid var(--erp-border)', fontWeight: 600 }}>
+                          <td>Subtotal</td>
+                          <td style={{ textAlign: 'right' }}>
+                            ${(quotation.subtotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                        {Number(quotation.discount_amount) > 0 && (
+                          <tr style={{ color: '#b91c1c' }}>
+                            <td>Discount</td>
+                            <td style={{ textAlign: 'right' }}>
+                              -${(quotation.discount_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        )}
+                        {Number(quotation.tax_percent) > 0 && (
+                          <tr>
+                            <td>VAT / Tax ({quotation.tax_percent}%)</td>
+                            <td style={{ textAlign: 'right' }}>
+                              +${(
+                                ((quotation.subtotal - quotation.discount_amount) * (quotation.tax_percent / 100)) || 0
+                              ).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        )}
+                        <tr
+                          style={{
+                            borderTop: '2px solid var(--erp-border)',
+                            backgroundColor: 'var(--erp-surface-hover)',
+                            fontSize: '14.5px',
+                            fontWeight: 700,
+                          }}
+                        >
+                          <td style={{ color: 'var(--erp-primary)' }}>Total Contract Amount</td>
+                          <td style={{ textAlign: 'right', color: 'var(--erp-primary)' }}>
+                            ${(quotation.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                        <tr style={{ fontSize: '12.5px', color: '#16a34a' }}>
+                          <td>Projected Profit Margin</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                            ${(quotation.expected_profit || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Quotation Notes / Scope */}
+                  {quotation.notes && (
+                    <div style={{ marginTop: '4px' }}>
+                      <span style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--erp-text-main)', display: 'block', marginBottom: '6px' }}>
+                        Quotation Terms, Warranty & Payment Conditions
+                      </span>
+                      <div
+                        style={{
+                          padding: '12px 14px',
+                          border: '1px solid var(--erp-border)',
+                          borderRadius: 'var(--erp-radius-input)',
+                          backgroundColor: 'var(--erp-surface-hover)',
+                          fontSize: '12.5px',
+                          color: 'var(--erp-text-main)',
+                          whiteSpace: 'pre-wrap',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {quotation.notes}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: DOCUMENT */}
           {activeTab === 'document' && (
             <div className="erp-tab-content" style={{ padding: '0', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}>
               <div style={{ overflowX: 'auto', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -1271,6 +1767,285 @@ export const SaleDetailView: React.FC = () => {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Create / Edit Quotation Modal */}
+      <Modal
+        isOpen={isQuoteModalOpen}
+        onClose={() => setIsQuoteModalOpen(false)}
+        title={quotation ? `Edit Quotation: ${quotation.quotation_number}` : 'Create Official Quotation'}
+        maxWidth="620px"
+      >
+        <form onSubmit={handleQuoteSubmit}>
+          <div className="erp-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {quoteErrors.form && (
+              <div style={{ color: '#b91c1c', fontSize: '12px' }}>
+                {quoteErrors.form}
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="erp-form-group">
+                <label className="erp-form-label">Quotation Number *</label>
+                <input
+                  type="text"
+                  required
+                  className={`erp-input ${quoteErrors.quotation_number ? 'error' : ''}`}
+                  value={quoteForm.quotation_number}
+                  onChange={e => setQuoteForm(prev => ({ ...prev, quotation_number: e.target.value }))}
+                />
+                {quoteErrors.quotation_number && (
+                  <span style={{ fontSize: '11.5px', color: '#b91c1c', marginTop: '3px', display: 'block' }}>
+                    {quoteErrors.quotation_number}
+                  </span>
+                )}
+              </div>
+
+              <div className="erp-form-group">
+                <label className="erp-form-label">Valid Until</label>
+                <input
+                  type="date"
+                  className="erp-input"
+                  value={quoteForm.valid_until}
+                  onChange={e => setQuoteForm(prev => ({ ...prev, valid_until: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--erp-text-main)', display: 'block', marginBottom: '8px' }}>
+                Cost Breakdown ($ USD)
+              </span>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="erp-form-group">
+                  <label className="erp-form-label">Material Cost ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="erp-input"
+                    value={quoteForm.material_cost}
+                    onChange={e => setQuoteForm(prev => ({ ...prev, material_cost: e.target.value as any }))}
+                  />
+                </div>
+
+                <div className="erp-form-group">
+                  <label className="erp-form-label">Labor & Assembly ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="erp-input"
+                    value={quoteForm.labor_cost}
+                    onChange={e => setQuoteForm(prev => ({ ...prev, labor_cost: e.target.value as any }))}
+                  />
+                </div>
+
+                <div className="erp-form-group">
+                  <label className="erp-form-label">Transportation ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="erp-input"
+                    value={quoteForm.transport_cost}
+                    onChange={e => setQuoteForm(prev => ({ ...prev, transport_cost: e.target.value as any }))}
+                  />
+                </div>
+
+                <div className="erp-form-group">
+                  <label className="erp-form-label">Installation ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="erp-input"
+                    value={quoteForm.installation_cost}
+                    onChange={e => setQuoteForm(prev => ({ ...prev, installation_cost: e.target.value as any }))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="erp-form-group">
+                <label className="erp-form-label">Discount Amount ($)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="erp-input"
+                  value={quoteForm.discount_amount}
+                  onChange={e => setQuoteForm(prev => ({ ...prev, discount_amount: e.target.value as any }))}
+                />
+              </div>
+
+              <div className="erp-form-group">
+                <label className="erp-form-label">Tax Rate (%)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="100"
+                  className="erp-input"
+                  value={quoteForm.tax_percent}
+                  onChange={e => setQuoteForm(prev => ({ ...prev, tax_percent: e.target.value as any }))}
+                />
+              </div>
+            </div>
+
+            {/* Dynamic Live Cost Summary */}
+            {(() => {
+              const mat = Number(quoteForm.material_cost) || 0;
+              const lab = Number(quoteForm.labor_cost) || 0;
+              const trn = Number(quoteForm.transport_cost) || 0;
+              const ins = Number(quoteForm.installation_cost) || 0;
+              const disc = Number(quoteForm.discount_amount) || 0;
+              const taxRate = Number(quoteForm.tax_percent) || 0;
+
+              const sub = mat + lab + trn + ins;
+              const afterDisc = Math.max(0, sub - disc);
+              const taxAmt = afterDisc * (taxRate / 100);
+              const tot = afterDisc + taxAmt;
+              const direct = mat + trn;
+              const profit = Math.max(0, tot - direct);
+
+              return (
+                <div
+                  style={{
+                    padding: '12px 14px',
+                    backgroundColor: 'var(--erp-surface-hover)',
+                    border: '1px solid var(--erp-border)',
+                    borderRadius: 'var(--erp-radius-input)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '12.5px',
+                  }}
+                >
+                  <div>
+                    <span style={{ color: 'var(--erp-text-muted)' }}>Subtotal: </span>
+                    <strong>${sub.toFixed(2)}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--erp-text-muted)' }}>Total Amount: </span>
+                    <strong style={{ color: 'var(--erp-primary)', fontSize: '13.5px' }}>
+                      ${tot.toFixed(2)}
+                    </strong>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--erp-text-muted)' }}>Est. Profit: </span>
+                    <strong style={{ color: '#16a34a' }}>${profit.toFixed(2)}</strong>
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div className="erp-form-group">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label className="erp-form-label" style={{ margin: 0 }}>Terms, Scope & Payment Conditions</label>
+                {availablePaymentTerms.length > 0 && (
+                  <select
+                    className="erp-select"
+                    style={{ height: '26px', fontSize: '11.5px', maxWidth: '320px', padding: '0 8px' }}
+                    defaultValue=""
+                    onChange={e => {
+                      const selected = availablePaymentTerms.find(t => t.id === Number(e.target.value));
+                      if (selected) {
+                        const milestoneStr = (selected.milestones || [])
+                          .map(m => `• ${m.milestone}: ${m.percent}% (${m.trigger}, Due: ${m.due})`)
+                          .join('\n');
+                        const termText = `${selected.name_en}${selected.name_kh ? ` (${selected.name_kh})` : ''}\n${milestoneStr}\nWarranty: 2 years standard on aluminium frames & accessories.`;
+                        setQuoteForm(prev => ({ ...prev, notes: termText }));
+                      }
+                    }}
+                  >
+                    <option value="" disabled>Load from Payment Term template...</option>
+                    {availablePaymentTerms.map(t => (
+                      <option key={t.id} value={t.id}>
+                        {t.name_en} {t.name_kh ? `(${t.name_kh})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <textarea
+                className="erp-input"
+                rows={3}
+                value={quoteForm.notes}
+                onChange={e => setQuoteForm(prev => ({ ...prev, notes: e.target.value }))}
+                style={{ width: '100%', resize: 'vertical' }}
+              />
+            </div>
+          </div>
+
+          <div className="erp-modal-footer">
+            <button
+              type="button"
+              className="erp-btn erp-btn-secondary"
+              onClick={() => setIsQuoteModalOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="erp-btn erp-btn-primary"
+            >
+              {quotation ? 'Save Changes' : 'Create Quotation'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Approve Quotation Confirmation Modal */}
+      <Modal
+        isOpen={isApproveModalOpen}
+        onClose={() => setIsApproveModalOpen(false)}
+        title="Approve Quotation & Win Deal"
+        maxWidth="480px"
+      >
+        <div>
+          <div className="erp-modal-body">
+            <p style={{ fontSize: '13px', color: 'var(--erp-text-main)', marginBottom: '14px', lineHeight: 1.5 }}>
+              Are you sure you want to approve quotation <strong>{quotation?.quotation_number}</strong>?
+            </p>
+            <div
+              style={{
+                padding: '12px 14px',
+                backgroundColor: 'var(--erp-surface-hover)',
+                border: '1px solid var(--erp-border)',
+                borderRadius: 'var(--erp-radius-input)',
+                fontSize: '12.5px',
+                lineHeight: 1.6,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
+              }}
+            >
+              <div>• Deal status will be marked as <strong style={{ color: '#16a34a' }}>Closed Won</strong>.</div>
+              <div>• Agreed contract value will be synced to <strong>${(quotation?.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong>.</div>
+              <div>• This project will become active in the <strong>Projects Workspace</strong> for workshop production.</div>
+            </div>
+          </div>
+
+          <div className="erp-modal-footer">
+            <button
+              type="button"
+              className="erp-btn erp-btn-secondary"
+              onClick={() => setIsApproveModalOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleApproveQuotation}
+              className="erp-btn erp-btn-primary"
+            >
+              <CheckCircle2 size={14} style={{ marginRight: '6px' }} />
+              <span>Confirm & Win Deal</span>
+            </button>
+          </div>
+        </div>
       </Modal>
 
 

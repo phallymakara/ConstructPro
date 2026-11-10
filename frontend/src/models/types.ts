@@ -482,3 +482,54 @@ export interface ProjectDocument {
   is_default?: boolean;
   created_at?: string;
 }
+
+export interface PaymentTermMilestone {
+  milestone: string;
+  trigger: string;
+  percent: number;
+  due: string;
+}
+
+export interface PaymentTerm {
+  id: number;
+  name_en: string;
+  name_kh?: string;
+  customer_count: number;
+  milestones: PaymentTermMilestone[];
+  is_default: boolean;
+  created_at: string;
+}
+
+export interface PaymentTermFormData {
+  name_en: string;
+  name_kh?: string;
+  customer_count?: number;
+  milestones: PaymentTermMilestone[];
+  is_default?: boolean;
+}
+
+export interface PaymentRatingRule {
+  rating: string;
+  label: string;
+  description: string;
+}
+
+export interface CompanyProfile {
+  id?: number;
+  company_name_kh: string;
+  company_name_en: string;
+  address: string;
+  phone: string;
+  telegram: string;
+  vat_tin: string;
+  bank_name: string;
+  account_name: string;
+  account_number: string;
+  doc_numbering_quotation: string;
+  doc_numbering_sales_order: string;
+  doc_numbering_delivery_note: string;
+  doc_numbering_invoice: string;
+  doc_numbering_receipt: string;
+  payment_rating_rules?: string;
+  updated_at?: string;
+}

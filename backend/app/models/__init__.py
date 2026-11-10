@@ -15,7 +15,9 @@ from app.models.entities import (
     PurchaseOrderItem,
     ProjectTask,
     ProjectSubtask,
-    ProjectDocument
+    ProjectDocument,
+    CompanyProfile,
+    PaymentTerm
 )
 
 __all__ = [
@@ -35,5 +37,7 @@ __all__ = [
     "PurchaseOrderItem",
     "ProjectTask",
     "ProjectSubtask",
-    "ProjectDocument"
+    "ProjectDocument",
+    "CompanyProfile",
+    "PaymentTerm"
 ]

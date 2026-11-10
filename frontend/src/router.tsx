@@ -16,6 +16,8 @@ import { PurchasingView } from './views/pages/PurchasingView';
 import { PurchaseOrderDetailView } from './views/pages/PurchaseOrderDetailView';
 import { SalesView } from './views/pages/SalesView';
 import { SaleDetailView } from './views/pages/SaleDetailView';
+import { PaymentTermsView } from './views/pages/PaymentTermsView';
+import { CompanyProfileView } from './views/pages/CompanyProfileView';
 import { useState, useEffect } from 'react';
 
 // Root Layout Component
@@ -34,6 +36,9 @@ function RootLayout() {
       '/inventory': 'Warehouse • ConstructPro',
       '/materials': 'Warehouse • ConstructPro',
       '/purchasing': 'Suppliers & Purchasing • ConstructPro',
+      '/settings': 'Settings • ConstructPro',
+      '/settings/payment-terms': 'Payment Terms • ConstructPro',
+      '/settings/company-profile': 'Company Profile • ConstructPro',
     };
     if (currentPath.startsWith('/projects/')) {
       document.title = 'Project Workspace • ConstructPro';
@@ -158,6 +163,24 @@ const salesRedirectRoute = createRoute({
   component: () => <Navigate to="/sale" replace />,
 });
 
+const paymentTermsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/settings/payment-terms',
+  component: PaymentTermsView,
+});
+
+const companyProfileRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/settings/company-profile',
+  component: CompanyProfileView,
+});
+
+const settingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/settings',
+  component: () => <Navigate to="/settings/payment-terms" replace />,
+});
+
 // Route Tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -173,6 +196,9 @@ const routeTree = rootRoute.addChildren([
   purchasingRoute,
   purchaseOrderDetailRoute,
   reportsRoute,
+  settingsRoute,
+  paymentTermsRoute,
+  companyProfileRoute,
 ]);
 
 // TanStack Router Instance
